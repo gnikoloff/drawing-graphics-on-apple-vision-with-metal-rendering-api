@@ -4,9 +4,10 @@
 2. Metal API
 3. Compositor Services
 4. Stereoscoping Rendering
-  4.1. Computing the View Matrices for Each Eye
-  4.2. Vertex Amplification
-  4.3. Variable Rate Rasterization (Foveation)
+   4.1. Computing the View Matrices for Each Eye
+   4.2. Vertex Amplification
+   4.3. Variable Rate Rasterization (Foveation)
+   
 6. Pre-Rendering Tasks
  6.1. Compute
  6.2. Animation / Tweening

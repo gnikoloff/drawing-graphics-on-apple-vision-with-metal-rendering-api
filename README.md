@@ -1,24 +1,23 @@
-
 # Rendering fast 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
 2. Metal API
 3. Compositor Services
 4. Stereoscoping Rendering
-   4.1. Computing the View Matrices for Each Eye
-   4.2. Vertex Amplification
-   4.3. Variable Rate Rasterization (Foveation)
+   1. Computing the View Matrices for Each Eye
+   2. Vertex Amplification
+   3. Variable Rate Rasterization (Foveation)
 5. Pre-Rendering Tasks
- 6.1. Compute
- 6.2. Animation / Tweening
- 6.2. Frame Prediction
-   6.2.1. Querying the Next Frame
-   6.2.2. Waiting Until Optimal Rendering Time
-   6.2.3. Frame Submission
+   1. Compute
+   2. Animation / Tweening
+   3. Frame Prediction
+      1. Querying the Next Frame
+      2. Waiting Until Optimal Rendering Time
+      3. Frame Submission
 6. Base / Forward MSAA Pass
- 7.1. Opaque Objects
- 7.2. Skybox
- 7.3. Transparent Objects
- 7.4. Resolving MSAA Texture
+   1. Opaque Objects
+   2. Skybox
+   3. Transparent Objects
+   4. Resolving MSAA Texture
 7. Bloom Pass
 8. Composite Pass

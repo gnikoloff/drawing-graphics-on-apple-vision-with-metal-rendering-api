@@ -1,4 +1,4 @@
-# Rendering fast 3D graphics on Apple Vision with the Metal API
+# Rendering 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
 2. Metal API

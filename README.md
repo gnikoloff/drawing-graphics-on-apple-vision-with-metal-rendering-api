@@ -1,4 +1,6 @@
-# Rendering 3D graphics on Apple Vision with the Metal API
+# Rendering 3D graphics on Apple Vision with Metal API
+
+## Anatomy of a frame in RAYQUEST
 
 1. Introduction
 2. Metal API

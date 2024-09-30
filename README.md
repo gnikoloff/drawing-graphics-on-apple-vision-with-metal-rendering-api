@@ -9,7 +9,7 @@
       1. Variable Rate Rasterization (Foveation)
       2. Organising the Metal textures used for presenting the rendered content
    3. Vertex Amplification
-      1. Configuring a `MTLRenderPipelineDescriptor` with Support for Vertex Amplification
+      1. Preparing to render with Support for Vertex Amplification
       2. Encoding and submitting a render pass to the GPU
       3. Enabling Vertex Amplification for a Render Pass
       4. Computing the View and Projection Matrices for Each Eye
@@ -166,7 +166,7 @@ Taken from this great [article](https://developer.apple.com/documentation/metal/
 
 Does this sound useful? Well it is, because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex amplification is not used only for rendering to both displays on Apple Vision and has it's benefits in graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
 
-#### Configuring a `MTLRenderPipelineDescriptor` with Support for Vertex Amplification
+#### Preparing to render with Support for Vertex Amplification
 
 But back to vertex amplification as means for efficient rendering to both Apple Vision displays. Say we want to render the aformentioned 3 vertices triangle on Apple Vision. In order to render anything, on any Apple device, be it with a traditional display or two displays set-up, we need to create a `MTLRenderPipelineDescriptor` that will hold all of the state needed to render an object in a single render pass. Stuff like the vertex and fragment shaders to use, the color and depth pixel formats to use when rendering, the sample count if we use MSAA and so on. In the case of Apple Vision, we need to explicitly set the `maxVertexAmplificationCount` property when creating our `MTLRenderPipelineDescriptor`:
 
@@ -204,7 +204,7 @@ When creating a render pass and submitting render commands for a frame via a `MT
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
 3. Specifying the viewport sizes for each render target.
 
-Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. The render target viewport sizes are also given to us by the `LayerRenderer`. We should **never** hardcode these values ourselves. Instead, we can query the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the textures and information we need to draw a frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
+Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the textures and information we need to draw a frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```
 // Get the current frame from Compositor Services
@@ -243,3 +243,81 @@ renderEncoder.setViewports(viewports)
 ```
 
 #### Computing the View and Projection Matrices for Each Eye
+
+Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view matrix for our head and projection matrices **for each eye** to use for rendering. If you have done any computer graphics work, you know that we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to a 2D position on our device screen (a simplified description, there are more actual steps to it).
+
+It is up to us, as programmers, to construct this virtual camera and decide what values all of these properties will have. Since our rendered objects' positions are ultimately presented on a 2D screen that we look at from some distance, these properties do not have to be "physically based" to match our eyes and field of view. We can go crazy with really small range of field of view, use a portrait aspect ratio, some weird projection ("fish eye") and so on for rendering.
+
+When rendering on Apple Vision we can not set these camera properties or augment them manually in any way. Doing otherwise will result in things looking "weird", and not matching our eyes (remember the initial eye setup you had to do when you bought your Apple Vision?). I can't imagine Apple being okay with publishing apps that do this as they break the immersion and make Apple Vision look crappy.
+
+So on each frame, we need to query 2 view matrices representing each eye's position in the physical world. Similarly, we need to query 2 perspective projection matrices that encode the **correct** aspect, field of view, near and far planes and so on for each eye from the current frame `LayerRenderer.Drawable`. It is up to us to obtain these 4 matrices on each frame and use them to render our content to both the screens. These 4 matrices are:
+
+1. Left eye view matrix
+2. Eight eye view matrix
+3. Left eye projection matrix
+4. Right eye projection matrix
+
+##### View Matrices
+
+These matrices represent each eye's position and orientation **with regards to the world coordinate space**. As you move around your room the view matrices will change. Shorter people will get different view matrices then tall people. You sitting on a couch and looking to the left will produce different view matrices than you standing up and looking to the right.
+
+Obtaining any of these matrices is a 3 step process:
+
+1. Obtain Apple Vision's view transform **pose** matrix that indicates Apple Vision's position and orientation in the world coordinate system.
+
+This is global and not tied to a specific eye. It has nothing do to with Compositor Services or the current frame's `Drawable`. Instead, to obtain it, we need to use ARKit and more specifically the visionOS-specific [`WorldTrackingProvider`](https://developer.apple.com/documentation/arkit/worldtrackingprovider), which is a source of live data about the device pose and anchors in a person’s surroundings. Here is some code:
+
+```swift
+// During app initialization
+let worldTracking = WorldTrackingProvider()
+let arSession = ARKitSession()
+
+// During app update loop
+Task {
+  do {
+    let dataProviders: [DataProvider] = [Self.worldTracking]
+    try await arSession.run(dataProviders)
+  } catch {
+    fatalError("Failed to run ARSession")
+  }
+}
+
+// During app render loop
+
+let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: time)
+
+// Query Apple Vision's world position and orientation anchor. If not available for some reason, fallback to an identity matrix
+let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.identity
+```
+
+`simdDeviceAnchor` now holds Apple Vision's transform pose matrix.
+   
+2. Obtain the eyes' local transformation matrix
+
+This matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `Drawable`. Here is how we obtain the left and right eyes local view matrices:
+
+```swift
+let leftEyeLocalMatrix = drawable.views[0].transform
+let rightEyeLocalMatrix = drawable.views[1].transform
+```
+
+3. Multiply the device pose matrix by each eye local transformation matrix to obtain each eye view transform matrix in the world coordinate space.
+
+To get the final world transformation matrix for each eye we multiply the matrix from step 1. by both eyes' matrices from step 2:
+
+```swift
+let leftEyeWorldMatrix = deviceAnchorMatrix * leftEyeLocalMatrix.transform
+let rightEyeWorldMatrix = deviceAnchorMatrix * rightEyeLocalMatrix.transform
+```
+
+To recap so far, let's refer to the 4 matrices (2 for each eye) needed to render our content on Apple Vision's displays:
+
+1. ~Left eye view matrix~
+2. ~Eight eye view matrix~
+3. Left eye projection matrix
+4. Right eye projection matrix
+
+We have the eyes world view transformation matrices. Two more projection matrices to go.
+##### Left and Right Eyes Projection Matrices
+
+These two matrices encode the perspective projection for each eye. Just like any eye-specific information, they very much rely on Compositor Services and the current frame

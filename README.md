@@ -250,7 +250,8 @@ It is up to us, as programmers, to construct this virtual camera and decide what
 
 When rendering on Apple Vision we can not set these camera properties or augment them manually in any way. Doing otherwise will result in things looking "weird", and not matching our eyes (remember the initial eye setup you had to do when you bought your Apple Vision?). I can't imagine Apple being okay with publishing apps that do this as they break the immersion and make Apple Vision look crappy.
 
-So on each frame, we need to query 2 view matrices representing each eye's position in the physical world. Similarly, we need to query 2 perspective projection matrices that encode the **correct** aspect, field of view, near and far planes and so on for each eye from the current frame `LayerRenderer.Drawable`. It is up to us to obtain these 4 matrices on each frame and use them to render our content to both the screens. These 4 matrices are:
+So on each frame, we need to query 2 view matrices representing each eye's position in the physical world. Similarly, we need to query 2 perspective projection matrices that encode the **correct** aspect, field of view, near and far planes and so on for each eye from the current frame `LayerRenderer.Drawable`. Each eye's "view" is represented by [`LayerRenderer.Drawable.View
+`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view). Compositor Services provides a view for each distinct render viewpoint. It is up to us to obtain these 4 matrices on each frame from both left and right eye views and use them to render our content to both the screens. These 4 matrices are:
 
 1. Left eye view matrix
 2. Eight eye view matrix
@@ -297,8 +298,8 @@ let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.ident
 This matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `Drawable`. Here is how we obtain the left and right eyes local view matrices:
 
 ```swift
-let leftEyeLocalMatrix = drawable.views[0].transform
-let rightEyeLocalMatrix = drawable.views[1].transform
+let leftViewLocalMatrix = drawable.views[0].transform
+let rightViewLocalMatrix = drawable.views[1].transform
 ```
 
 3. Multiply the device pose matrix by each eye local transformation matrix to obtain each eye view transform matrix in the world coordinate space.
@@ -306,9 +307,11 @@ let rightEyeLocalMatrix = drawable.views[1].transform
 To get the final world transformation matrix for each eye we multiply the matrix from step 1. by both eyes' matrices from step 2:
 
 ```swift
-let leftEyeWorldMatrix = deviceAnchorMatrix * leftEyeLocalMatrix.transform
-let rightEyeWorldMatrix = deviceAnchorMatrix * rightEyeLocalMatrix.transform
+let leftViewWorldMatrix = (deviceAnchorMatrix * leftEyeLocalMatrix.transform).inverse
+let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).inverse
 ```
+
+Pay special attention to the `.inverse` part in the end! That is because Apple Vision expects us to use a reverse-Z projection. This is especially important for passthrough rendering with Metal on visionOS 2.0.
 
 To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision's displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
 
@@ -321,4 +324,52 @@ Two more projection matrices to go.
 
 ##### Left and Right Eyes Projection Matrices
 
-These two matrices encode the perspective projection for each eye. Just like any eye-specific information, they very much rely on Compositor Services and the current frame
+These two matrices encode the perspective projections for each eye. Just like any eye-specific information, they very much rely on Compositor Services and the current `Frame`. How do we go about computing them?
+
+Each `LayerRenderer.Drawable.View` for both eyes gives us a property called [`.tangents`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view/4082271-tangents). It represents the values for the angles you use to determine the planes of the viewing frustum. We can use these angles to construct the volume between the near and far clipping planes that contains the scene’s visible content. In other words, we will use these tangent values to build the perspective projection matrix for each eye.
+
+Let's obtain the tangent property for both eyes:
+
+```swift
+let leftViewTangents = drawable.views[0].tangents
+let rightViewTangents = drawable.views[0].tangents
+```
+
+We will also need to get the near and far planes to use in our projections. They are the same for both eyes. We can query them from the current frame's `LayerRenderer.Drawable` like so:
+
+```swift
+let farPlane = drawable.depthRange.x
+let nearPlane = drawable.depthRange.y
+```
+
+> **_NOTE:_** Notice that the far plane is encoded in the `.x` property, while the near plane is in the `.y` range. That is, and I can not stress it enough, because Apple expects us to use reverse-Z projection matrices.
+
+> **_NOTE:_** At the time of writing this article, the far plane (`depthRange.x`) is actually positioned at infinity. Not sure why Apple decided to do this. Leaving it as-is will break certain techniques (for example subdividing the viewing frustum volume into subparts for Cascaded Shadowmaps). In RAYQUEST I actually artifically overwrite and cap this value at something like -500 before constructing my projection matrices.
+
+Now that we have them, we will utilise Apple's new [Spatial](https://developer.apple.com/documentation/spatial) API. It will allow us to create and manipulate 3D mathematical primitives. What we are interested in particular is the [`ProjectiveTransform3D`](https://developer.apple.com/documentation/spatial/projectivetransform3d) that will allow us to obtain a perspective matrix for each eye given the tangents we queried earlier. Here is how it looks in code:
+
+```swift
+let leftViewProjectionMatrix = ProjectiveTransform3D(
+  leftTangent: Double(leftViewTangents[0]),
+  rightTangent: Double(leftViewTangents[1]),
+  topTangent: Double(leftViewTangents[2]),
+  bottomTangent: Double(leftViewTangents[3]),
+  nearZ: depthRange.y,
+  farZ: depthRange.x,
+  reverseZ: false
+)
+
+let rightViewProjectionMatrix = ProjectiveTransform3D(
+  leftTangent: Double(rightViewTangents[0]),
+  rightTangent: Double(rightViewTangents[1]),
+  topTangent: Double(rightViewTangents[2]),
+  bottomTangent: Double(rightViewTangents[3]),
+  nearZ: depthRange.y,
+  farZ: depthRange.x,
+  reverseZ: false
+)
+```
+
+And that's it! We have obtained all 4 matrices needed to render our content. The global view and projection matrix for the left eye and the global view and projection for the right eye. That was easy, no? ;)
+
+Armed with these 4 matrices we can now move on to writing our shaders.

@@ -57,7 +57,7 @@ So here is the frame we will examine:
 
 ![Random frame captured during gameplay of RAYQUEST](rayquest-random-frame.png)
 
-> **_NOTE:_** Before continuing, I would like to mention that aside from the rendering engine capabilities and techniques covered in this article, a lot of the boilerplate, setup code and theory has been covered in this great [official example](https://developer.apple.com/documentation/compositorservices/drawing_fully_immersive_content_using_metal) by Apple. I strongly suggest it as an accompanying reading to this article.
+> **_NOTE:_** Before continuing, I would like to mention that aside from the rendering engine capabilities and techniques covered in this article, a lot of the boilerplate, setup code and theory has been covered in this great [official example](https://developer.apple.com/documentation/compositorservices/drawing_fully_immersive_content_using_metal) by Apple. In fact, the origins of the RAYQUEST code lead straight to this example. I strongly suggest it as an accompanying reading to this article.
 
 ## Stereoscoping Rendering
 

@@ -192,9 +192,9 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 8. Render object B.
 9. Finally submit all of the above commands to the GPU
 
-All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a `MTLRenderCommandEncoder`. We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a `MTLCommandBuffer` which is submitted to the GPU for execution. For a given frame, the GPU will execute each command in correct order, produce the final pixel values for this specific frame, and write them to the final texture to be presented to the user.
+All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, the GPU will execute each command in correct order, produce the final pixel values for this specific frame, and write them to the final texture to be presented to the user.
 
-It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit commands to the GPU for general-purpose non-rendering work such as fast number crunching (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). However, let's focus only on the rendering commands for now.
+It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). However, let's focus only on the rendering commands for now.
 
 #### Enabling Vertex Amplification for a Render Pass
 
@@ -244,7 +244,7 @@ renderEncoder.setViewports(viewports)
 
 #### Computing the View and Projection Matrices for Each Eye
 
-Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view matrix for our head and projection matrices **for each eye** to use for rendering. If you have done any computer graphics work, you know that we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to clip space, which in turn is then converted to NDC space and finally to screen space by the GPU.
+Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view and projection matrices **for each eye** to use for rendering. If you have done any computer graphics work, you know that we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to clip space, which in turn is then converted to NDC space and finally to screen space by the GPU.
 
 It is up to us, as programmers, to construct this virtual camera and decide what values all of these properties will have. Since our rendered objects' positions are ultimately presented on a 2D screen that we look at from some distance, these properties do not have to be "physically based" to match our eyes and field of view. We can go crazy with really small range of field of view, use a portrait aspect ratio, some weird projection ("fish eye") and so on for rendering.
 
@@ -254,7 +254,7 @@ So on each frame, we need to query 2 view matrices representing each eye's posit
 `](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view). Compositor Services provides a view for each distinct render viewpoint. It is up to us to obtain these 4 matrices on each frame from both left and right eye views and use them to render our content to both the screens. These 4 matrices are:
 
 1. Left eye view matrix
-2. Eight eye view matrix
+2. Right eye view matrix
 3. Left eye projection matrix
 4. Right eye projection matrix
 
@@ -284,7 +284,6 @@ Task {
 }
 
 // During app render loop
-
 let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: time)
 
 // Query Apple Vision's world position and orientation anchor. If not available for some reason, fallback to an identity matrix
@@ -316,7 +315,7 @@ let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).
 To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision's displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
 
 1. ~Left eye view matrix~
-2. ~Eight eye view matrix~
+2. ~Right eye view matrix~
 3. Left eye projection matrix
 4. Right eye projection matrix
 
@@ -344,7 +343,7 @@ let nearPlane = drawable.depthRange.y
 
 > **_NOTE:_** Notice that the far plane is encoded in the `.x` property, while the near plane is in the `.y` range. That is, and I can not stress it enough, because Apple expects us to use reverse-Z projection matrices.
 
-> **_NOTE:_** At the time of writing this article, the far plane (`depthRange.x`) is actually positioned at infinity. Not sure why Apple decided to do this. Leaving it as-is will break certain techniques (for example subdividing the viewing frustum volume into subparts for Cascaded Shadowmaps). In RAYQUEST I actually artifically overwrite and cap this value at something like -500 before constructing my projection matrices. It works well for immersive space rendering. I can imagine overwriting any of these values is a big no-no for passthrough rendering on visionOS 2.0 (which has a different way of constructing projection matrices for each eye alltogether btw).
+> **_NOTE:_** At the time of writing this article, the far plane (`depthRange.x`) is actually positioned at infinity. Not sure why Apple decided to do this. Leaving it as-is will break certain techniques (for example subdividing the viewing frustum volume into subparts for Cascaded Shadowmaps). In RAYQUEST I actually artifically overwrite and cap this value at something like -500 before constructing my projection matrices. Remember what I said about never overwriting the default projection matrix attributes Apple Vision gives you? Well I did it only in this case. It works well for immersive space rendering. I can imagine however that overwriting any of these values is a big no-no for passthrough rendering on visionOS 2.0 (which has a different way of constructing projection matrices for each eye alltogether btw).
 
 Now that we have them, we will utilise Apple's new [Spatial](https://developer.apple.com/documentation/spatial) API. It will allow us to create and manipulate 3D mathematical primitives. What we are interested in particular is the [`ProjectiveTransform3D`](https://developer.apple.com/documentation/spatial/projectivetransform3d) that will allow us to obtain a perspective matrix for each eye given the tangents we queried earlier. Here is how it looks in code:
 

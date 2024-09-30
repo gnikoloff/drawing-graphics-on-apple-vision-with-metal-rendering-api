@@ -14,10 +14,10 @@
       1. Querying the Next Frame
       2. Waiting Until Optimal Rendering Time
       3. Frame Submission
-5. Base / Forward MSAA Pass
+5. Bloom Pass
+6. Base / Forward MSAA Pass
    1. Opaque Objects
    2. Skybox
    3. Transparent Objects
    4. Resolving MSAA Texture
-6. Bloom Pass
 7. Composite Pass

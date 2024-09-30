@@ -310,14 +310,15 @@ let leftEyeWorldMatrix = deviceAnchorMatrix * leftEyeLocalMatrix.transform
 let rightEyeWorldMatrix = deviceAnchorMatrix * rightEyeLocalMatrix.transform
 ```
 
-To recap so far, let's refer to the 4 matrices (2 for each eye) needed to render our content on Apple Vision's displays:
+To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision's displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
 
 1. ~Left eye view matrix~
 2. ~Eight eye view matrix~
 3. Left eye projection matrix
 4. Right eye projection matrix
 
-We have the eyes world view transformation matrices. Two more projection matrices to go.
+Two more projection matrices to go.
+
 ##### Left and Right Eyes Projection Matrices
 
 These two matrices encode the perspective projection for each eye. Just like any eye-specific information, they very much rely on Compositor Services and the current frame

@@ -130,7 +130,7 @@ Which one should you use? Ideally `.shared` or `.layered` as having one texture 
 
 Let's update the configuration code once more:
 
-```
+```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
   func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: inout LayerRenderer.Configuration) {
       // Same as before
@@ -206,7 +206,7 @@ When creating a render pass and submitting render commands for a frame via a `MT
 
 Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the textures and information we need to draw a frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
-```
+```swift
 // Get the current frame from Compositor Services
 guard let frame = layerRenderer.queryNextFrame() else {
    return

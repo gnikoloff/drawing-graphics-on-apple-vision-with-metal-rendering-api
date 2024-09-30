@@ -51,4 +51,3 @@ So here is the frame we will examine:
 ![Random frame captured during gameplay of RAYQUEST](https://github.com/gnikoloff/rendering-on-apple-vision-with-metal-api/blob/master/rayquest-random-frame.png)
 
 
-

@@ -3,8 +3,7 @@
 1. Introduction
    1. `Metal` API
    2. `Compositor Services` API
-3. Dissecting a Frame of RAYQUEST
-4. Stereoscoping Rendering
+2. Stereoscoping Rendering
    1. Configuring a `CompositorLayer` for rendering at initialization time
       1. Variable Rate Rasterization (Foveation)
       2. Organising the Metal textures used for presenting the rendered content
@@ -14,7 +13,8 @@
       3. Enabling Vertex Amplification for a Render Pass
       4. Computing the View and Projection Matrices for Each Eye
       5. Adding Vertex Amplification to our shaders
-5. Pre-Rendering Tasks
+3. Dissecting a Frame of RAYQUEST
+4. Pre-Rendering Tasks
    1. Capturing user input via ARKit
    2. Compute
    3. Animation / Tweening
@@ -22,14 +22,14 @@
       1. Querying the Next Frame
       2. Waiting Until Optimal Rendering Time
       3. Frame Submission
-6. Base / Forward MSAA Pass
+5. Base / Forward MSAA Pass
    1. Opaque Objects
    2. Skybox
    3. Transparent Objects
    4. Resolving MSAA Texture
-7. Bloom Pass
-8. Composite Pass
-9. Passthrough Rendering
+6. Bloom Pass
+7. Composite Pass
+8. Passthrough Rendering
 
 ## Introduction
 
@@ -48,16 +48,6 @@ I will not focus too much on the intristics of Metal in this article, however wi
 ### Compositor Services
 
 Compositor Services is visionOS-specific API that lets you draw directly to the Apple Vision Pro displays (there is one for each eye). It provides a bridge between your SwiftUI code and your Metal rendering engine code by giving you a layer, which contains the Metal types, textures, and other information you need. This layer also provides timing information to help you manage your app’s rendering loop and deliver frames of content in a timely manner. It does so by allowing us to query a `LayerRenderer.Frame` on each frame. This `Frame` holds a `Drawable` that we can use for rendering our Metal graphics.
-
-## Dissecting a Frame of RAYQUEST
-
-[RAYQUEST](https://rayquestgame.com/) is my first game published on Apple Vision. It utilises Compositor Services and Metal to deliver advanced graphics at 4K resolution at 90 frames per second. This article will take one random frame of it captured during gameplay and show you how is it rendered by taking you on a trip through the complete rendering pipeline.
-
-So here is the frame we will examine:
-
-![Random frame captured during gameplay of RAYQUEST](rayquest-random-frame.png)
-
-> **_NOTE:_** Before continuing, I would like to mention that aside from the rendering engine capabilities and techniques covered in this article, a lot of the boilerplate, setup code and theory has been covered in this great [official example](https://developer.apple.com/documentation/compositorservices/drawing_fully_immersive_content_using_metal) by Apple. In fact, the origins of the RAYQUEST code lead straight to this example. I strongly suggest it as an accompanying reading to this article.
 
 ## Stereoscoping Rendering
 
@@ -388,3 +378,13 @@ VertexOut out = {
 Nothin' fancy. This vertex shader expects 2 camera matrices - the view and projection matrices.
 
 Remember we have two displays and two eye views on Apple Vision. Each view holds it's own respective view and projection matrices. We need a vertex shader that will accept 4 matrices - a view and projection matrices for each eye.
+
+## Dissecting a Frame of RAYQUEST
+
+[RAYQUEST](https://rayquestgame.com/) is my first game published on Apple Vision. It utilises Compositor Services and Metal to deliver advanced graphics at 4K resolution at 90 frames per second. This article will take one random frame of it captured during gameplay and show you how is it rendered by taking you on a trip through the complete rendering pipeline.
+
+So here is the frame we will examine:
+
+![Random frame captured during gameplay of RAYQUEST](rayquest-random-frame.png)
+
+> **_NOTE:_** Before continuing, I would like to mention that aside from the rendering engine capabilities and techniques covered in this article, a lot of the boilerplate, setup code and theory has been covered in this great [official example](https://developer.apple.com/documentation/compositorservices/drawing_fully_immersive_content_using_metal) by Apple. In fact, the origins of the RAYQUEST code lead straight to this example. I strongly suggest it as an accompanying reading to this article.

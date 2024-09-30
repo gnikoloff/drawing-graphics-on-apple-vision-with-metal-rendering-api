@@ -47,7 +47,7 @@ I will not focus too much on the intristics of Metal in this article, however wi
 
 ### Compositor Services
 
-Compositor Services is visionOS-specific API that lets you draw directly to the Apple Vision Pro displays (there is one for each eye). It provides a bridge between your SwiftUI code and your Metal rendering engine code by giving you a layer, which contains the Metal types, textures, and other information you need. This layer also provides timing information to help you manage your app’s rendering loop and deliver frames of content in a timely manner.
+Compositor Services is visionOS-specific API that lets you draw directly to the Apple Vision Pro displays (there is one for each eye). It provides a bridge between your SwiftUI code and your Metal rendering engine code by giving you a layer, which contains the Metal types, textures, and other information you need. This layer also provides timing information to help you manage your app’s rendering loop and deliver frames of content in a timely manner. It does so by allowing us to query a `LayerRenderer.Frame` on each frame. This `Frame` holds a `Drawable` that we can use for rendering our Metal graphics.
 
 ## Dissecting a Frame of RAYQUEST
 
@@ -107,6 +107,7 @@ In other words, foveation allows us to render at a higher resolution the content
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
   func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: inout LayerRenderer.Configuration) {
+      // Same as before
       configuration.depthFormat = .depth32Float
       configuration.colorFormat = .bgra8Unorm_srgb
 
@@ -131,19 +132,19 @@ Let's update the configuration code once more:
 
 ```
 struct ContentStageConfiguration: CompositorLayerConfiguration {
-  func makeConfiguration(
-    capabilities: LayerRenderer.Capabilities,
-    configuration: inout LayerRenderer.Configuration) {
+  func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: inout LayerRenderer.Configuration) {
+      // Same as before
       configuration.depthFormat = .depth32Float
       configuration.colorFormat = .bgra8Unorm_srgb
 
-    let foveationEnabled = capabilities.supportsFoveation
-    configuration.isFoveationEnabled = foveationEnabled
+      // Same as before
+      let foveationEnabled = capabilities.supportsFoveation
+      configuration.isFoveationEnabled = foveationEnabled
 
-    let options: LayerRenderer.Capabilities.SupportedLayoutsOptions = foveationEnabled ? [.foveationEnabled] : []
-    let supportedLayouts = capabilities.supportedLayouts(options: options)
-
-    configuration.layout = supportedLayouts.contains(.layered) ? .layered : .dedicated
+      // Set the LayerRenderer's texture layout configuration
+      let options: LayerRenderer.Capabilities.SupportedLayoutsOptions = foveationEnabled ? [.foveationEnabled] : []
+      let supportedLayouts = capabilities.supportedLayouts(options: options)
+      configuration.layout = supportedLayouts.contains(.layered) ? .layered : .dedicated
   }
 }
 ```
@@ -157,7 +158,7 @@ Imagine we have a triangle we want rendered on Apple Vision. A triangle consists
 1. Issue a draw command to render 3 vertices to the left eye display.
 2. Issue another draw command to render the same 3 vertices again, this time for the right eye display.
 
-This is not optimal as it doubles the commands needed to be submited to the GPU for rendering. A 3 vertices triangle is fine, but for complex scenes with even moderate amounts of geometry it becomes unwieldly very fast. Thankfully, Metal allows us to submit the 3 vertices once for both displays via a process called **vertex amplification**.
+This is not optimal as it doubles the commands needed to be submited to the GPU for rendering. A 3 vertices triangle is fine, but for more complex scenes with even moderate amounts of geometry it becomes unwieldly very fast. Thankfully, Metal allows us to submit the 3 vertices once for both displays via a process called **vertex amplification**.
 
 Taken from this great [article](https://developer.apple.com/documentation/metal/render_passes/improving_rendering_performance_with_vertex_amplification) on vertex amplification from Apple:
 
@@ -184,25 +185,26 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 1. Set the clear color before rendering.
 2. Set the viewport size.
 3. Set the render target we are rendering to.
-4. Set `MTLRenderPipelineState` for object A
-5. Render object A.
-6. Set `MTLRenderPipelineState` for object B
-7. Render object B.
+4. Clear the contents of the render target with the clear color set in step 1.
+5. Set `MTLRenderPipelineState` for object A
+6. Render object A.
+7. Set `MTLRenderPipelineState` for object B
+8. Render object B.
 9. Finally submit all of the above commands to the GPU
 
-All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a `MTLRenderCommandEncoder`. We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a `MTLCommandBuffer` which is submitted to the GPU for execution. The GPU will execute each command in correct order, writing the final frame values to the final texture to be presented to the user.
+All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a `MTLRenderCommandEncoder`. We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a `MTLCommandBuffer` which is submitted to the GPU for execution. For a given frame, the GPU will execute each command in correct order, produce the final pixel values for this specific frame, and write them to the final texture to be presented to the user.
 
 It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit commands to the GPU for general-purpose non-rendering work such as fast number crunching (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). However, let's focus only on the rendering commands for now.
 
 #### Enabling Vertex Amplification for a Render Pass
 
-When creating a `MTLRenderCommandEncoder` to submit commands for drawing we need to enable Vertex Amplification for this render pass. This compromises of two steps:
+When creating a render pass and submitting render commands for a frame via a `MTLRenderCommandEncoder`, we need to enable Vertex Amplification. This consists of three steps:
 
 1. Specifying the number of amplifications to create.
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
-3. Specifying the viewport sizes for each render target
+3. Specifying the viewport sizes for each render target.
 
-Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. The render target viewport sizes are also given to us by the `LayerRenderer`. We should never hardcode these values ourselves. Instead, we can query the current frame `Drawable` given to us by Compositor Services and obtain them from it. Here is how this looks in code:
+Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. The render target viewport sizes are also given to us by the `LayerRenderer`. We should **never** hardcode these values ourselves. Instead, we can query the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the textures and information we need to draw a frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```
 // Get the current frame from Compositor Services

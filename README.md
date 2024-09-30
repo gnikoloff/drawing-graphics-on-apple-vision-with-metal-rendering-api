@@ -1,28 +1,29 @@
 # Rendering 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
-   1. Metal API
-   2. Compositor Services
+   1. `Metal` API
+   2. `Compositor Services` API
 2. Dissecting a Frame of RAYQUEST
 3. Stereoscoping Rendering
-   1. Computing the View Matrices for Each Eye
+   1. Organization of the `Compositor Services` textures you use for drawing   
    2. Vertex Amplification
-   3. Variable Rate Rasterization (Foveation)
-4. Pre-Rendering Tasks
+   3. Computing the View Matrices for Each Eye
+   4. Variable Rate Rasterization (Foveation)
+5. Pre-Rendering Tasks
    1. Compute
    2. Animation / Tweening
    3. Frame Prediction
       1. Querying the Next Frame
       2. Waiting Until Optimal Rendering Time
       3. Frame Submission
-5. Bloom Pass
 6. Base / Forward MSAA Pass
    1. Opaque Objects
    2. Skybox
    3. Transparent Objects
    4. Resolving MSAA Texture
-7. Composite Pass
-8. Passthrough Rendering
+7. Bloom Pass
+8. Composite Pass
+9. Passthrough Rendering
 
 ## Introduction
 
@@ -50,4 +51,6 @@ So here is the frame we will examine:
 
 ![Random frame captured during gameplay of RAYQUEST](rayquest-random-frame.png)
 
+### Stereoscoping Rendering
 
+First thing we need to realize is that unlike traditional apps where we render to a single device screen, be it on your MacBook or iPhone, on Apple Vision we need to render to two displays - one for the left eye and one for the right eye.

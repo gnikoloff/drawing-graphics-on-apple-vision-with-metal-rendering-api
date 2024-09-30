@@ -13,7 +13,7 @@
       2. Encoding and submitting a render pass to the GPU
       3. Enabling Vertex Amplification for a Render Pass
       4. Computing the View and Projection Matrices for Each Eye
-      5. Adding Vertex Amplification to our Vertex Shader
+      5. Adding Vertex Amplification to our shaders
 5. Pre-Rendering Tasks
    1. Capturing user input via ARKit
    2. Compute
@@ -244,7 +244,7 @@ renderEncoder.setViewports(viewports)
 
 #### Computing the View and Projection Matrices for Each Eye
 
-Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view matrix for our head and projection matrices **for each eye** to use for rendering. If you have done any computer graphics work, you know that we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to a 2D position on our device screen (a simplified description, there are more actual steps to it).
+Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view matrix for our head and projection matrices **for each eye** to use for rendering. If you have done any computer graphics work, you know that we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to clip space, which in turn is then converted to NDC space and finally to screen space by the GPU.
 
 It is up to us, as programmers, to construct this virtual camera and decide what values all of these properties will have. Since our rendered objects' positions are ultimately presented on a 2D screen that we look at from some distance, these properties do not have to be "physically based" to match our eyes and field of view. We can go crazy with really small range of field of view, use a portrait aspect ratio, some weird projection ("fish eye") and so on for rendering.
 
@@ -370,6 +370,22 @@ let rightViewProjectionMatrix = ProjectiveTransform3D(
 )
 ```
 
-And that's it! We have obtained all 4 matrices needed to render our content. The global view and projection matrix for the left eye and the global view and projection for the right eye. That was easy, no? ;)
+And that's it! We have obtained all 4 matrices needed to render our content. The global view and projection matrix for the left eye and the global view and projection for the right eye.
 
-Armed with these 4 matrices we can now move on to writing our shaders.
+Armed with these 4 matrices we can now move on to writing our shaders for stereoscoping rendering.
+
+#### Adding Vertex Amplification to our shaders
+
+Usually when rendering objects to a texture we need to supply a pair of shaders: the vertex and fragment shaders. We might omit the fragment shader for certain scenarios (such as rendering to a depth buffer only), but let's keep it simple and assume both are present.
+
+If you have done traditional, non-VR non-stereoscoping rendering, you know that you construct a virtual camera, position and orient it in the world and supply it to the vertex shader which in turn multiplies each vertex with the camera view and projection matrices to turn it from local space to clip space. If you made it this far in this article, I assume you have seen this in your shader language of choice:
+
+```metal
+VertexOut out = {
+   .position = camera.projectionMatrix * camera.viewMatrix * float4(vertexPosition, 1.0)
+};
+```
+
+Nothin' fancy. This vertex shader expects 2 camera matrices - the view and projection matrices.
+
+Remember we have two displays and two eye views on Apple Vision. Each view holds it's own respective view and projection matrices. We need a vertex shader that will accept 4 matrices - a view and projection matrices for each eye.

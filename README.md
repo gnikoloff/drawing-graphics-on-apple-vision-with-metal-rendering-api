@@ -4,15 +4,16 @@
    1. `Metal` API
    2. `Compositor Services` API
 2. Stereoscoping Rendering
-   1. Configuring a `CompositorLayer` for rendering at initialization time
+   1. Creating and configuring a `LayerRenderer`
       1. Variable Rate Rasterization (Foveation)
-      2. Organising the Metal textures used for presenting the rendered content
+      2. Organising the Metal textures used for presenting the rendered content on Apple Vision
    3. Vertex Amplification
       1. Preparing to render with Support for Vertex Amplification
       2. Encoding and submitting a render pass to the GPU
       3. Enabling Vertex Amplification for a Render Pass
       4. Computing the View and Projection Matrices for Each Eye
       5. Adding Vertex Amplification to our shaders
+      6. Rendering
 3. Dissecting a Frame of RAYQUEST
 4. Pre-Rendering Tasks
    1. Capturing user input via ARKit

@@ -307,6 +307,12 @@ let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).
 
 > **_NOTE:_** Pay special attention to the `.inverse` part in the end! That is because Apple Vision expects us to use a reverse-Z projection. This is especially important for passthrough rendering with Metal on visionOS 2.0.
 
+Hopefully this image illustrates the concept:
+
+![Apple Vision eye matrices illustrated](vision-pro-matrices.png)
+
+`simdDeviceAnchor` would be 
+
 To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision's displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
 
 1. ~Left eye view matrix~

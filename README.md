@@ -19,11 +19,17 @@
    3. Supporting both stereoscopic and flat 2D display rendering
       1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
       3. Adapting our Vertex Shader
-3. Updating and encoding a frame of content
-   1. Fetching a frame for drawing
-   2. 
-5. Dissecting a Frame of RAYQUEST
-6. Pre-Rendering Tasks
+3. Updating and Encoding a Frame of Content
+   1. Rendering on a Separate Thread
+   2. Fetching a Next Frame for Drawing
+   3. Handling User Input
+   4. Waiting Until Optimal Rendering Time
+   5. Issuing Draw Calls
+   6. Frame Submission
+  
+
+4. Dissecting a Frame of RAYQUEST
+5. Pre-Rendering Tasks
    1. Capturing user input via ARKit
    2. Compute
    3. Animation / Tweening
@@ -31,14 +37,14 @@
       1. Querying the Next Frame
       2. Waiting Until Optimal Rendering Time
       3. Frame Submission
-7. Base / Forward MSAA Pass
+6. Base / Forward MSAA Pass
    1. Opaque Objects
    2. Skybox
    3. Transparent Objects
    4. Resolving MSAA Texture
-8. Bloom Pass
-9. Composite Pass
-10. Passthrough Rendering
+7. Bloom Pass
+8. Composite Pass
+9. Passthrough Rendering
 
 ## Introduction
 
@@ -512,6 +518,15 @@ Our updated shader supports both flat 2D and stereoscoping rendering. All we nee
 
 > **_NOTE:_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require Vertex Amplification.
 > With our updated vertex shader, we can now support both.
+
+
+
+
+
+
+
+
+
 
 ## Dissecting a Frame of RAYQUEST
 

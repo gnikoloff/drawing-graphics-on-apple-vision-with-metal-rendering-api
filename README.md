@@ -1,5 +1,7 @@
 # Rendering 3D graphics on Apple Vision with the Metal API
 
+## Dissecting a Frame of RAYQUEST
+
 1. Introduction
    1. `Metal` API
    2. `Compositor Services` API
@@ -16,9 +18,12 @@
       6. Rendering
    3. Supporting both stereoscopic and flat 2D display rendering
       1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
-      3. Adapting our Vertex Shaders
-3. Dissecting a Frame of RAYQUEST
-4. Pre-Rendering Tasks
+      3. Adapting our Vertex Shader
+3. Updating and encoding a frame of content
+   1. Fetching a frame for drawing
+   2. 
+5. Dissecting a Frame of RAYQUEST
+6. Pre-Rendering Tasks
    1. Capturing user input via ARKit
    2. Compute
    3. Animation / Tweening
@@ -26,14 +31,14 @@
       1. Querying the Next Frame
       2. Waiting Until Optimal Rendering Time
       3. Frame Submission
-5. Base / Forward MSAA Pass
+7. Base / Forward MSAA Pass
    1. Opaque Objects
    2. Skybox
    3. Transparent Objects
    4. Resolving MSAA Texture
-6. Bloom Pass
-7. Composite Pass
-8. Passthrough Rendering
+8. Bloom Pass
+9. Composite Pass
+10. Passthrough Rendering
 
 ## Introduction
 
@@ -463,7 +468,7 @@ By using preprocessor directives in Swift, we can build our project for differen
 
 It should be noted that the 2D render path will omit all of the vertex amplification commands we prepared earlier on the CPU to be submitted to the GPU for drawing. Stuff like `renderEncoder.setVertexAmplificationCount(2, viewMappings: &viewMappings)` and `renderEncoder.setViewports(viewports)` is no longer needed.
 
-#### Adapting our Vertex Shaders
+#### Adapting our Vertex Shader
 
 The vertex shader we wrote earlier needs some rewriting to support non-Vertex Amplified rendering. That can be done easily with [Metal function constants](https://developer.apple.com/documentation/metal/using_function_specialization_to_build_pipeline_variants). If you don't know what they are or how to use them, please refer to the linked article first. They basically allow us to compile one shader binary and then conditionally enable / disable things in it when using it to build render or compute pipelines. Take a look:
 

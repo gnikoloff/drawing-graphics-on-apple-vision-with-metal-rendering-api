@@ -15,9 +15,8 @@
       5. Adding Vertex Amplification to our shaders
       6. Rendering
    3. Supporting both stereoscopic and flat 2D display rendering
-      1. `LayerRenderer.Frame.Drawable` vs `MTKView`
-      2. One pair of view and projection matrices vs two
-      3. Adapting our vertex shaders
+      1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
+      3. Adapting our Vertex Shaders
 3. Dissecting a Frame of RAYQUEST
 4. Pre-Rendering Tasks
    1. Capturing user input via ARKit
@@ -360,7 +359,7 @@ Armed with these 4 matrices we can now move on to writing our shaders for stereo
 
 #### Adding Vertex Amplification to our shaders
 
-Usually when rendering objects to a texture we need to supply a pair of shaders: the vertex and fragment shaders. We might omit the fragment shader for certain scenarios (such as rendering to a depth buffer only), but let's keep it simple and assume both are present.
+Usually when rendering objects to a texture we need to supply a pair of shaders: the vertex and fragment shaders. Let's not focus on the fragment shader, as it normally will be the same for both eyes (unless you want to give the user headache).
 
 If you have done traditional, non-VR non-stereoscoping rendering, you know that you construct a virtual camera, position and orient it in the world and supply it to the vertex shader which in turn multiplies each vertex with the camera view and projection matrices to turn it from local space to clip space. If you made it this far in this article, I assume you have seen this in your shader language of choice:
 
@@ -369,7 +368,7 @@ typedef struct {
    matrix_float4x4 projectionMatrix;
    matrix_float4x4 viewMatrix;
    // ...
-} CameraUniforms;
+} CameraEyeUniforms;
 
 typedef struct {
   float4 position [[position]];
@@ -377,13 +376,17 @@ typedef struct {
   float3 normal [[shared]];
 } VertexOut;
 
-vertex VertexOut myVertexShader(constant CameraUniforms &camera [[buffer(0)]]) {
+vertex VertexOut myVertexShader(constant CameraEyeUniforms &camera [[buffer(0)]]) {
    VertexOut out = {
       .position = camera.projectionMatrix * camera.viewMatrix * vertexPosition,
       .texCoord = /* compute UV */,
       .normal = /* compute normal */
    };
    return out;
+}
+
+fragment float4 myFragShader() {
+   return float4(1, 0, 0, 1);
 }
 ```
 
@@ -426,9 +429,84 @@ When it comes to actually issuing draw commands, drawing on Apple Vision does no
 
 ### Supporting both stereoscopic and flat 2D display rendering 
 
-As you can see, Apple Vision requires us to **always** think in terms of two eyes and two render targets. Our rendering code, matrices and shaders were built around this concept. So the question is, can we write a renderer that supports "traditional" and stereoscoping rendering simultaneously? Of course we can!
+As you can see, Apple Vision requires us to **always** think in terms of two eyes and two render targets. Our rendering code, matrices and shaders were built around this concept. So the question is, can we write a renderer that supports "traditional" and stereoscoping rendering simultaneously? Of course we can! Doing so however requires some carefull planning and inevitably some preprocessor directives in your codebase.
 
+#### Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`
 
+On Apple Vision, you configure a `LayerRenderer` at init time and the system gives you `LayerRenderer.Frame.Drawable` on each frame to draw to. On macOS / iOS / iPadOS and so on, you create a `MTKView` and a `MTKViewDelegate` that allows you to hook into the system resizing and drawing updates. In both cases you present your rendered content to the user by drawing to the texture provided by the system to you. How would this look in code? How about this:
+
+```swift
+open class Renderer {
+   #if os(visionOS)
+      public var currentDrawable: LayerRenderer.Drawable
+   #else
+      public var currentDrawable: MTKView
+   #endif
+
+   private func renderFrame() {
+      // prepare frame, run animations, collect user input, etc
+
+      #if os(visionOS)
+         // prepare a two sets of view and projection matrices for both eyes
+         // render to both render targets simultaneously 
+      #else
+         // prepare a view and projection matrix for a single virtual camera
+         // render to single render target
+      #endif
+
+      // submit your rendering commands to the GPU for rendering
+   }
+}
+```
+
+By using preprocessor directives in Swift, we can build our project for different targets. This way we can have two render paths for stereoscoping and normal 2D rendering.
+
+It should be noted that the 2D render path will omit all of the vertex amplification commands we prepared earlier on the CPU to be submitted to the GPU for drawing. Stuff like `renderEncoder.setVertexAmplificationCount(2, viewMappings: &viewMappings)` and `renderEncoder.setViewports(viewports)` is no longer needed.
+
+#### Adapting our Vertex Shaders
+
+The vertex shader we wrote earlier needs some rewriting to support non-Vertex Amplified rendering. That can be done easily with [Metal function constants](https://developer.apple.com/documentation/metal/using_function_specialization_to_build_pipeline_variants). If you don't know what they are or how to use them, please refer to the linked article first. They basically allow us to compile one shader binary and then conditionally enable / disable things in it when using it to build render or compute pipelines. Take a look:
+
+```metal
+typedef struct {
+   matrix_float4x4 projectionMatrix;
+   matrix_float4x4 viewMatrix;
+} CameraUniforms;
+
+typedef struct {
+   CameraEyeUniforms camUniforms[2];
+} CameraBothEyesUniforms;
+
+typedef struct {
+  float4 position [[position]];
+} VertexOut;
+
+constant bool isAmplifiedRendering [[function_constant(0)]];
+constant bool isNonAmplifiedRendering = !isAmplifiedRendering;
+
+vertex VertexOut myVertexShader(
+   ushort ampId                                    [[amplification_id]],
+   constant CameraUniforms &camera                 [[buffer(0), function_constant(isNonAmplifiedRendering]],
+   constant CameraBothEyesUniforms &cameraBothEyes [[buffer(1), function_constant(isAmplifiedRendering)]]
+) {
+   if (isAmplifiedRendering) {
+      constant CameraEyeUniforms &camera = bothEyesCameras.uniforms[ampId];
+      out.position = camera.projectionMatrix * camera.viewMatrix * vertexPosition;
+   } else {
+      out.position = camera.projectionMatrix * camera.viewMatrix * vertexPosition;
+   }
+   return out;
+}
+
+fragment float4 myFragShader() {
+   return float4(1, 0, 0, 1);
+}
+```
+
+Our updated shader supports both flat 2D and stereoscoping rendering. All we need to set the `isAmplifiedRendering` function constant when creating a `MTLRenderPipelineState` and supply the correct matrices to it.
+
+> **_NOTE:_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require Vertex Amplification.
+> With our updated vertex shader, we can now support both.
 
 ## Dissecting a Frame of RAYQUEST
 

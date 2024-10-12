@@ -48,31 +48,27 @@
 
 ## Introduction
 
-Apple Vision Pro has been out for 7 months at the time of writing this article. Many games have been released for it since then and more and more game developers enter this niche. When it comes to rendering, most developers jump to an existing game engine such as Unity or use Apple's high level rendering APIs such as RealityKit. However, a third way exists, one that has been there since visionOS 1.0 - rolling your own rendering engine using the Metal API. While challenging, this method is incredibly rewarding and gives you complete control over the entire rendering pipeline down to each individual byte and command submitted to the GPU.
+At the time of writing, Apple Vision Pro has been available for seven months, with numerous games released and an increasing number of developers entering this niche. When it comes to rendering, most opt for established game engines like Unity or Apple's high-level APIs like RealityKit. However, there's another option that's been available since visionOS 1.0: building your own rendering engine using the Metal API. Though challenging, this approach offers full control over the rendering pipeline, down to each byte and command submitted to the GPU on each frame.
 
-> **_NOTE:_** visionOS 2.0 allows us to render graphics via the Metal API and overlay (composite) them in **mixed** mode with the user's surroundings caputed by the device cameras' feed. This article focuses on writing Metal apps for fully **immersive** mode, although passthrough rendering will be mentioned at the end.
+> **Note**: visionOS 2.0 enables rendering graphics with the Metal API and compositing them in mixed mode with the user’s surroundings, captured by the device's cameras. This article focuses on developing Metal apps for fully immersive mode, though passthrough rendering will be discussed at the end. At the time of Apple Vision Pro release, visionOS 1.0 allowed for rendering with the Metal API in **immersive** mode only.
 
-### Metal API
+### Metal
 
-Taken directly from Apple's official website:
+To directly quote Apple:
 
 > Metal is a modern, tightly integrated graphics and compute API coupled with a powerful shading language that is designed and optimized for Apple platforms. Its low-overhead model gives you direct control over each task the GPU performs, enabling you to maximize the efficiency of your graphics and compute software. Metal also includes an unparalleled suite of GPU profiling and debugging tools to help you improve performance and graphics quality.
 
-I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and **incredibly nice** to work with. It is more explicit than an API such as OpenGL ES, there is more planning involved in setting up your rendering pipeline, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode's built-in Metal profiler and debugger are hands down the **best** tools to debug and inspect computer graphics I have seen so far.
+I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and with plenty of tutorials and examples. I personally find it **very nice** to work with. It is more explicit than an API such as OpenGL ES, there is more planning involved in setting up your rendering pipeline and rendering frames, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode has high quality built-in Metal profiler and debugger that allows for inspecting your GPU workloads and your shader inputs, code and outputs.
 
 ### Compositor Services
 
-Compositor Services is visionOS-specific API that provides a bridge between your SwiftUI code and your Metal rendering engine code. In other words it lets you draw directly via your custom Metal renderer to the Apple Vision displays. There are two displays - for the left and right eye.
+Compositor Services is a visionOS-specific API that bridges your SwiftUI code with your Metal rendering engine. In other words, it allows you to render directly via your custom Metal renderer to the Apple Vision displays, which include separate displays for the left and right eye.
 
-At the app's initialization time, Compositor Services will allow us to configure a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object that will be created for us behind the scenes and used for rendering on Apple Vision during the lifetime of our app. This configuration includes the texture layouts, pixel formats used, should foveation be enabled and other rendering options. If we don’t provide a custom configuration, Compositor Services uses a set of default configuration values. The `LayerRenderer` also provides timing information to help you manage your app’s rendering loop and deliver frames of content in a timely manner.
+At the app’s initialization, Compositor Services allows us to configure a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object, created behind the scenes, to handle rendering on Apple Vision throughout the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to standard settings. The LayerRenderer also supplies timing information to help manage your app’s rendering loop and deliver frames efficiently.
 
 ## Stereoscoping Rendering
 
-As we already established, Apple Vision has two displays for both eyes. That means we need a set of textures for each eye's view or a single texture big enough to accommodate the views of both eyes. First, let's take a look at organising the textures' layout.
-
-### Configuring a `CompositorLayer` for rendering at initialization time
-
-In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. Here is boilerplate code:
+In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. Here is some boilerplate code:
 
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
@@ -86,15 +82,14 @@ struct ContentStageConfiguration: CompositorLayerConfiguration {
 }
 
 @main
-struct TestingApp: App {
+struct MyApp: App {
   var body: some Scene {
     WindowGroup {
       ContentView()
     }
     ImmersiveSpace(id: "ImmersiveSpace") {
-      // Supply the CompositorLayerConfiguration we created to the CompositorLayer.
       CompositorLayer(configuration: ContentStageConfiguration()) { layerRenderer in
-         // The system uses the CompositorLayerConfiguration we supplied to create a LayerRenderer we can use for rendering.
+         // layerRenderer is what we will use for rendering, frame timing and other presentation info in our engine
       }
     }
   }
@@ -103,11 +98,7 @@ struct TestingApp: App {
 
 #### Variable Rate Rasterization (Foveation)
 
-Next thing we need to set up is whether to enable support for **foveation** in LayerRenderer. What is foveation you ask? Taken straight from the [Wikipedia article]([https://en.wikipedia.org/wiki/Foveated_imaging](https://en.wikipedia.org/wiki/Foveated_rendering)):
-
-> Foveated rendering is a rendering technique which uses an eye tracker integrated with a virtual reality headset to reduce the rendering workload by greatly reducing the image quality in the peripheral vision (outside of the zone gazed by the fovea)
-
-In other words, foveation allows us to render at a higher resolution the content our eyes gaze directly at and render everything else at a lower resolution. This works exactly like in real life, where you see things you gaze at clearly while everything else in the periphery is blurier and less focused.
+Next thing we need to set up is whether to enable support for **foveation** in `LayerRenderer`. Foveation allows us to render at a higher resolution the content our eyes gaze directly at and render at a lower resolution everything else. That is very beneficial in VR as it allowes for improved performance.
 
 Apple Vision does eye-tracking and foveation automatically for us (in fact, it is not possible for developers to access the user's gaze **at all** due to security concerns). So we need to setup our `LayerRenderer` to support it and we will get it "for free" during rendering. When we render to the `LayerRenderer` textures, Apple Vision will automatically adjust the resolution to be higher at the regions of the textures we directly gaze at. Here is the previous code that configures the `LayerRenderer`, updated with support for foveation:
 

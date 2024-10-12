@@ -21,7 +21,8 @@
    3. Supporting Both Stereoscopic and Flat 2D Display Rendering
       1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
       3. Adapting our Vertex Shader
-   4. Gotchas
+     
+         
 3. Updating and Encoding a Frame of Content
    1. Rendering on a Separate Thread
    2. Fetching a Next Frame for Drawing
@@ -116,6 +117,7 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
    configuration.isFoveationEnabled = foveationEnabled
 }
 ```
+> **_NOTE:_** Turning on foveation prevents rendering to a framebuffer with smaller dimensions than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has [MetalFX](https://developer.apple.com/documentation/metalfx) that allows us to render to a smaller pixel buffer and use their native libraries to upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`.rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created depending on whether we turned on the `.isFoveationEnabled` property in our layer configuration. We can not use smaller viewport sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps, because the viewport sizes will not match the dimensions Apple already set in the rasterization rate maps.
 
 #### Organizing the Metal Textures Used for Presenting the Rendered Content
 

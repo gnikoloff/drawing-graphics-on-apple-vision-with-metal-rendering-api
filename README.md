@@ -274,7 +274,7 @@ let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.ident
    
 2. Obtain the eyes' local transformation matrix
 
-This matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `LayerRenderer.Drawable`. Here is how we obtain the left and right eyes local view matrices:
+These matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `LayerRenderer.Drawable`. Here is how we obtain the left and right eyes local view matrices:
 
 ```swift
 let leftViewLocalMatrix = drawable.views[0].transform

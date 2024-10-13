@@ -1,12 +1,11 @@
-
 1. Introduction
    1. Why Write This Article?
    1. `Metal` API
    2. `Compositor Services` API
-3. Creating and configuring a `LayerRenderer`
+2. Creating and configuring a `LayerRenderer`
    1. Variable Rate Rasterization (Foveation)
    2. Organizing the Metal Textures Used for Presenting the Rendered Content
-4. Vertex Amplification
+3. Vertex Amplification
    1. Preparing to Render with Support for Vertex Amplification
    2. Encoding and Submitting a Render Pass to the GPU
    3. Enabling Vertex Amplification for a Render Pass
@@ -14,7 +13,7 @@
    5. Adding Vertex Amplification to our Shaders
       1. Vertex Shader
       2. Fragment Shader
-5. Updating and Encoding a Frame of Content
+4. Updating and Encoding a Frame of Content
    1. Rendering on a Separate Thread
    2. Fetching a Next Frame for Drawing
    3. Getting Predicted Render Deadlines
@@ -24,6 +23,11 @@
 5. Supporting Both Stereoscopic and non-VR Display Rendering 
    1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
    3. Adapting our Vertex Shader
+6. Gotchas
+   1. Can't render to a smaller resolution pixel buffer when foveation is enabled.
+   2. Can't mix foveated and non-foveated rendering
+   3. Postprocessing
+   5. Apple Vision Simulator
 
 ## Introduction
 
@@ -168,8 +172,18 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 7. Set `MTLRenderPipelineState` for object B
 8. Render object B.
 9. Finally submit all of the above commands to the GPU
+10. Write the resulting pixel values to some pixel attachment
 
-All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from the steps above into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been issued and submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
+All of these rendering commands represent a single **render pass** that happens on each frame while our game is running. This render pass is configured via [`MTLRenderPassDescriptor`](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor). We need to configure the render pass to use foveation and output to two render targets simultaneously. 
+
+```swift
+let renderPassDescriptor = MTLRenderPassDescriptor()
+// ...
+renderPassDescriptor.rasterizationRateMap =
+renderPassDescriptor.renderTargetArrayLength = 2
+```
+
+Once created with the definition above, the render pass represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from the steps above into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been issued and submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
 
 > **_NOTE:_** A game can and often does have multiple render passes per frame. Imagine you are building a first person racing game. The main render pass would draw the interior of your car, your opponents' cars, the world, the trees and so on. A second render pass will draw all of the HUD and UI on top. A third render pass might be used for drawing shadows. A fourth render pass might render the objects in your rearview mirror and so on. All of these render passes need to be encoded and submitted to the GPU on each new frame for drawing.
 
@@ -182,8 +196,6 @@ When creating a render pass and submitting render commands for a frame via a `MT
 1. Specifying the number of amplifications to create.
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
 3. Specifying the viewport sizes for each render target.
-
-Remember, we are using a `.layered` texture format in Compositor Services and dealing with two render targets on Apple Vision. So the number of amplifications is, in this case, 2. The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```swift
 // Get the current frame from Compositor Services
@@ -729,3 +741,11 @@ fragment float4 myFragShader() {
 Our updated shader supports both flat 2D and stereoscoping rendering. All we need to set the `isAmplifiedRendering` function constant when creating a `MTLRenderPipelineState` and supply the correct matrices to it.
 
 > **_NOTE:_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require multiple render targets or vertex amplification. With our updated vertex shader, we can now support both.
+
+## Gotchas
+
+I have hinted at some of these throughout the article, but let's recap them and write them down together.
+
+### Can't render to a smaller resolution pixel buffer when foveation is enabled
+
+Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.

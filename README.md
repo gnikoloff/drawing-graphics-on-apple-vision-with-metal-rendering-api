@@ -445,7 +445,7 @@ I will skip on the fragment shader code for brevity sake. However will mention a
 
 In all these cases, we need the two pair of view + projection matrices for each eye. Fragment shaders also get the `amplification_id` property as input, so we can query the correct matrices in exactly the same way as did in the vertex shader above.
 
-> **_NOTE:_** Compute shaders **do not** get an `[[amplification_id]]` property. That makes porting and running view-dependent compute shaders harder when using two texture views in stereoscoping rendering.
+> **_NOTE:_** Compute shaders **do not** get an `[[amplification_id]]` property. That makes porting and running view-dependent compute shaders harder when using two texture views in stereoscoping rendering. When adopting well established algorithms you may need to rethink them to account for two eyes and two textures.
 
 All that's left to do is...
 

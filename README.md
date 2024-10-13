@@ -688,7 +688,7 @@ It should be noted that the 2D render path will omit all of the vertex amplifica
 
 ### Adapting our Vertex Shader
 
-The vertex shader we wrote earlier needs some rewriting to support non-Vertex Amplified rendering. That can be done easily with [Metal function constants](https://developer.apple.com/documentation/metal/using_function_specialization_to_build_pipeline_variants). If you don't know what they are or how to use them, please refer to the linked article first. They allow us to compile one shader binary and then conditionally enable / disable things in it when using it to build render or compute pipelines. Take a look:
+The vertex shader we wrote earlier needs some rewriting to support non-Vertex Amplified rendering. That can be done easily with [Metal function constants](https://developer.apple.com/documentation/metal/using_function_specialization_to_build_pipeline_variants). Function constants allow us to compile one shader binary and then conditionally enable / disable things in it when using it to build render or compute pipelines. Take a look:
 
 ```metal
 typedef struct {

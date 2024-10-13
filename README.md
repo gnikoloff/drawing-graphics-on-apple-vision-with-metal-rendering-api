@@ -242,7 +242,7 @@ So on each frame, we need to query 2 view matrices representing each eye's posit
 
 These matrices represent each eye's position and orientation **with regards to the world coordinate space**. As you move around your room the view matrices will change. Shorter people will get different view matrices then tall people. You sitting on a couch and looking to the left will produce different view matrices than you standing up and looking to the right.
 
-Obtaining any of these two matrices is a 3 step process:
+Obtaining the view matrices for both eyes is a 3 step process:
 
 1. Obtain Apple Vision view transform **pose** matrix that indicates the device position and orientation in the world coordinate system.
 

@@ -535,7 +535,7 @@ class GameEngine {
 
 ### Getting Predicted Render Deadlines
 
-We need to block our render thread until the optimal rendering time to start the submission phase given to us by Compositor Services. Let's expand our `onRender` method:
+We need to block our render thread until the optimal rendering time to start the submission phase given to us by Compositor Services. First we will query this optimal rendering time and use it later. Let's expand our `onRender` method:
 
 ```swift
 private func onRender() {

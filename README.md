@@ -331,7 +331,7 @@ These two matrices encode the perspective projections for each eye. Just like an
 
 Each `LayerRenderer.Drawable.View` for both eyes gives us a property called [`.tangents`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view/4082271-tangents). It represents the values for the angles you use to determine the planes of the viewing frustum. We can use these angles to construct the volume between the near and far clipping planes that contains the scene’s visible content. We will use these tangent values to build the perspective projection matrix for each eye.
 
-> **_NOTE:_** The `.tangents` property is in fact deprecated on visionOS 2.0 and should not be used in new code. To obtain correct projection matrices for a given eye, one should use the new Compositor Services' [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:)) method. I will still cover doing it via the `.tangents` property anyway however.
+> **_NOTE:_** The `.tangents` property is in fact deprecated on visionOS 2.0 and should not be used in new code. To obtain correct projection matrices for a given eye, one should use the new Compositor Services' [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:)) method. I will still cover doing it via the `.tangents` property for historical reasons.
 
 Let's obtain the tangent property for both eyes:
 

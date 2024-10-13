@@ -1,4 +1,3 @@
-# Rendering 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
    1. Why Write This Article?
@@ -52,7 +51,7 @@ At the app’s initialization, Compositor Services automatically creates and con
 
 ## Creating and configuring a `LayerRenderer`
 
-In our scene creation code, we need to pass a type that adopts the `CompositorLayerConfiguration` protocol as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
+In our scene creation code, we need to pass a type that adopts the `CompositorLayerConfiguration` protocol as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
 
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
@@ -174,7 +173,7 @@ All of these rendering commands represent a **render pass** that happens on each
 
 > **_NOTE:_** A game can and often does have multiple render passes per frame. Imagine you are building a first person racing game. The main render pass would draw the interior of your car, your opponents' cars, the world, the trees and so on. A second render pass will draw all of the HUD and UI on top. A third render pass might be used for drawing shadows. A fourth render pass might render the objects in your rearview mirror and so on. All of these render passes need to be encoded and submitted to the GPU on each new frame for drawing.
 
-It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit "compute" commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision's internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
+It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit "compute" commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
 
 #### Enabling Vertex Amplification for a Render Pass
 
@@ -266,11 +265,11 @@ Task {
 // During app render loop
 let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: time)
 
-// Query Apple Vision's world position and orientation anchor. If not available for some reason, fallback to an identity matrix
+// Query Apple Vision world position and orientation anchor. If not available for some reason, fallback to an identity matrix
 let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.identity
 ```
 
-`simdDeviceAnchor` now holds Apple Vision's head transform pose matrix.
+`simdDeviceAnchor` now holds Apple Vision head transform pose matrix.
    
 2. Obtain the eyes' local transformation matrix
 
@@ -296,7 +295,7 @@ Hopefully this image illustrates the concept:
 
 ![Apple Vision eye matrices illustrated](vision-pro-matrices.png)
 
-To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision's displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
+To recap so far, let's refer to the 4 matrices needed to render our content on Apple Vision displays. We already computed the first two, the eyes world view transformation matrices, so let's cross them out from our to-do list:
 
 1. ~Left eye view matrix~
 2. ~Right eye view matrix~

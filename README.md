@@ -131,8 +131,8 @@ That takes care of the basic configuration for `LayerRenderer` for rendering our
 
 Imagine we have a triangle we want rendered on Apple Vision. A triangle consists of 3 vertices. If we were to render it to a "normal" non-VR display we would submit 3 vertices to the GPU and let it draw them for us. On Apple Vision we have two displays. How do we go about it? A naive way would be to submit two drawing commands:
 
-1. Issue a draw command **A** to render 3 vertices to the left eye display.
-2. Issue a draw command **B** to render the same 3 vertices again, this time for the right eye display.
+1. Issue draw command **A** to render 3 vertices to the left eye display.
+2. Issue draw command **B** to render the same 3 vertices again, this time for the right eye display.
 
 > **_NOTE:_** Rendering everything twice and issuing double the amount of commands is required if you have chosen `.dedicated` texture layout when setting up your `LayerRenderer`.
 

@@ -246,7 +246,7 @@ Obtaining any of these two matrices is a 3 step process:
 
 1. Obtain Apple Vision view transform **pose** matrix that indicates the device position and orientation in the world coordinate system.
 
-This is global and not tied to a specific eye. It has nothing do to with Compositor Services or the current frame's `Drawable`. Instead, to obtain it, we need to use ARKit and more specifically the visionOS-specific [`WorldTrackingProvider`](https://developer.apple.com/documentation/arkit/worldtrackingprovider), which is a source of live data about the device pose and anchors in a person’s surroundings. Here is some code:
+This is global and not tied to a specific eye. It has nothing do to with Compositor Services or the current frame's `LayerRenderer.Drawable`. Instead, to obtain it, we need to use ARKit and more specifically the visionOS-specific [`WorldTrackingProvider`](https://developer.apple.com/documentation/arkit/worldtrackingprovider), which is a source of live data about the device pose and anchors in a person’s surroundings. Here is some code:
 
 ```swift
 // During app initialization
@@ -274,7 +274,7 @@ let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.ident
    
 2. Obtain the eyes' local transformation matrix
 
-This matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `Drawable`. Here is how we obtain the left and right eyes local view matrices:
+This matrices specify the position and orientation of the left and right eyes **releative** to the device's pose. Just like any eye-specific information, we need to query it from the current frame's `LayerRenderer.Drawable`. Here is how we obtain the left and right eyes local view matrices:
 
 ```swift
 let leftViewLocalMatrix = drawable.views[0].transform
@@ -520,7 +520,7 @@ We start a separate thread that on each frame checks the [`LayerRenderer.State`]
 
 ### Fetching a Next Frame for Drawing
 
-Remember all the code we wrote earlier that used `LayerRenderer.Frame`? We obtained the current `Drawable` from it and queried it for the current frame view and projection matrices, view mappings and so on. This `LayerRenderer.Frame` is obviously different across frames and we have to constantly query it before using it and encoding draw commands to the GPU. Let's expand upon the `onRender` method from the previous code snippet and query the next frame for drawing:
+Remember all the code we wrote earlier that used `LayerRenderer.Frame`? We obtained the current `LayerRenderer.Drawable` from it and queried it for the current frame view and projection matrices, view mappings and so on. This `LayerRenderer.Frame` is obviously different across frames and we have to constantly query it before using it and encoding draw commands to the GPU. Let's expand upon the `onRender` method from the previous code snippet and query the next frame for drawing:
 
 ```swift
 class GameEngine {

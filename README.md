@@ -5,25 +5,22 @@
 1. Introduction
    1. `Metal` API
    2. `Compositor Services` API
-2. Stereoscoping Rendering
-   1. Creating and configuring a `LayerRenderer`
-      1. Variable Rate Rasterization (Foveation)
-      2. Organizing the Metal Textures Used for Presenting the Rendered Content
-   2. Vertex Amplification
-      1. Preparing to Render with Support for Vertex Amplification
-      2. Encoding and Submitting a Render Pass to the GPU
-      3. Enabling Vertex Amplification for a Render Pass
-      4. Computing the View and Projection Matrices for Each Eye
-      5. Adding Vertex Amplification to our Shaders
-         1. Vertex Shader
-         2. Fragment Shader
-      6. Rendering
-   3. Supporting Both Stereoscopic and Flat 2D Display Rendering
-      1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
-      3. Adapting our Vertex Shader
-     
-         
-3. Updating and Encoding a Frame of Content
+2. Creating and configuring a `LayerRenderer`
+   1. Variable Rate Rasterization (Foveation)
+   2. Organizing the Metal Textures Used for Presenting the Rendered Content
+3. Vertex Amplification
+   1. Preparing to Render with Support for Vertex Amplification
+   2. Encoding and Submitting a Render Pass to the GPU
+   3. Enabling Vertex Amplification for a Render Pass
+   4. Computing the View and Projection Matrices for Each Eye
+   5. Adding Vertex Amplification to our Shaders
+      1. Vertex Shader
+      2. Fragment Shader
+   6. Rendering
+4. Supporting Both Stereoscopic and Flat 2D Display Rendering
+   1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
+   3. Adapting our Vertex Shader        
+5. Updating and Encoding a Frame of Content
    1. Rendering on a Separate Thread
    2. Fetching a Next Frame for Drawing
    3. Handling User Input
@@ -70,9 +67,7 @@ Compositor Services is a visionOS-specific API that bridges your SwiftUI code wi
 
 At the app’s initialization, Compositor Services allows us to configure a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object, created behind the scenes, to handle rendering on Apple Vision throughout the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to standard settings. The `LayerRenderer` also supplies timing information to help manage your app’s rendering loop and deliver frames efficiently.
 
-## Stereoscoping Rendering
-
-### Creating and configuring a `LayerRenderer`
+## Creating and configuring a `LayerRenderer`
 
 In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. Here is some boilerplate code:
 
@@ -102,7 +97,7 @@ struct MyApp: App {
 }
 ```
 
-#### Variable Rate Rasterization (Foveation)
+### Variable Rate Rasterization (Foveation)
 
 Next thing we need to set up is whether to enable support for **foveation** in `LayerRenderer`. Foveation allows us to render at a higher resolution the content our eyes gaze directly at and render at a lower resolution everything else. That is very beneficial in VR as it allows for improved performance.
 
@@ -119,7 +114,7 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
 ```
 > **_NOTE:_** Turning on foveation prevents rendering to a framebuffer with smaller dimensions than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has [MetalFX](https://developer.apple.com/documentation/metalfx) that allows us to render to a smaller pixel buffer and use their native libraries to upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`.rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created depending on whether we turned on the `.isFoveationEnabled` property in our layer configuration. We can not use smaller viewport sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps, because the viewport sizes will not match the dimensions Apple already set in the rasterization rate maps.
 
-#### Organizing the Metal Textures Used for Presenting the Rendered Content
+### Organizing the Metal Textures Used for Presenting the Rendered Content
 
 We established we need to render our content as two views to both Apple Vision displays. We have three options when it comes to the organization of the textures' layout we use for drawing:
 
@@ -163,9 +158,9 @@ Taken from this great [article](https://developer.apple.com/documentation/metal/
 
 Does this sound useful? Well it is, because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex Amplification is not used only for rendering to both displays on Apple Vision and has it's benefits in general graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
 
-#### Preparing to render with Support for Vertex Amplification
+#### Preparing to Render with Support for Vertex Amplification
 
-But back to Vertex Amplification as means for efficient rendering to both Apple Vision displays. Say we want to render the aforementioned 3 vertices triangle on Apple Vision. In order to render anything, on any Apple device, be it with a traditional display or two displays set-up, we need to create a `MTLRenderPipelineDescriptor` that will hold all of the state needed to render an object in a single render pass. Stuff like the vertex and fragment shaders to use, the color and depth pixel formats to use when rendering, the sample count if we use MSAA and so on. In the case of Apple Vision, we need to explicitly set the `maxVertexAmplificationCount` property when creating our `MTLRenderPipelineDescriptor`:
+But back to vertex amplification as means for efficient rendering to both Apple Vision displays. Say we want to render the aforementioned 3 vertices triangle on Apple Vision. In order to render anything, on any Apple device, be it with a traditional display or two displays set-up, we need to create a `MTLRenderPipelineDescriptor` that will hold all of the state needed to render an object in a single render pass. Stuff like the vertex and fragment shaders to use, the color and depth pixel formats to use when rendering, the sample count if we use MSAA and so on. In the case of Apple Vision, we need to explicitly set the `maxVertexAmplificationCount` property when creating our `MTLRenderPipelineDescriptor`:
 
 ```swift
 let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
@@ -177,7 +172,7 @@ pipelineStateDescriptor.maxVertexAmplificationCount = 2
 
 #### Encoding and submitting a render pass to the GPU
 
-We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline configuration with Vertex Amplification enabled. We can use it to create a render pipeline, represented by `MTLRenderPipelineState`. Once this render pipeline has been created created, the call to render this pipeline needs to be encoded into list of per-frame commands to be submitted to the GPU. What are examples of such commands? Imagine we are building a game with two objects and on each frame we do the following operations:
+We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline configuration with vertex amplification enabled. We can use it to create a render pipeline, represented by `MTLRenderPipelineState`. Once this render pipeline has been created created, the call to render this pipeline needs to be encoded into list of per-frame commands to be submitted to the GPU. What are examples of such commands? Imagine we are building a game with two objects and on each frame we do the following operations:
 
 1. Set the clear color before rendering.
 2. Set the viewport size.
@@ -195,7 +190,7 @@ It is important to note that the commands to be encoded in a `MTLCommandBuffer` 
 
 #### Enabling Vertex Amplification for a Render Pass
 
-When creating a render pass and submitting render commands for a frame via a `MTLRenderCommandEncoder`, we need to enable Vertex Amplification. This consists of three steps:
+When creating a render pass and submitting render commands for a frame via a `MTLRenderCommandEncoder`, we need to enable vertex amplification. This consists of three steps:
 
 1. Specifying the number of amplifications to create.
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
@@ -418,7 +413,7 @@ fragment float4 myFragShader() {
 
 This vertex shader expects a single pair of matrices - the view matrix and projection matrix.
 
-> **_NOTE:_** Take a look at the `VertexOut` definition. `texCoord` and `normal` are marked as `shared`, while `position` is not. That's because the position values will change depending on the current Vertex Amplification index. Both eyes have a different pair of matrices to transform each vertex with. The output vertex for the left eye render target will have different final positions than the output vertex for the right eye.
+> **_NOTE:_** Take a look at the `VertexOut` definition. `texCoord` and `normal` are marked as `shared`, while `position` is not. That's because the position values will change depending on the current vertex amplification index. Both eyes have a different pair of matrices to transform each vertex with. The output vertex for the left eye render target will have different final positions than the output vertex for the right eye.
 > I hope this makes clear why `texCoord` and `normal` are `shared`. The values are **not** view or projection dependent. Their values will always be uniforms across different render targets, regardless of with which eye are we rendering them. For more info check out this [article](https://developer.apple.com/documentation/metal/render_passes/improving_rendering_performance_with_vertex_amplification).
 
 Remember we have two displays and two eye views on Apple Vision. Each view holds it's own respective view and projection matrices. We need a vertex shader that will accept 4 matrices - a view and projection matrices for each eye. 
@@ -432,7 +427,7 @@ typedef struct {
 } CameraBothEyesUniforms;
 ```
 
-See what we did there? We treat the original `CameraUniforms` as a single eye and combine both eyes in `camUniforms`. With that out of the way, we need to instruct the vertex shader which matrices to use exactly. How do we do that? Well, we get a special `amplification_id` property as input to our shaders. It allows us to query the index of which Vertex Amplification are we currently executing. We have two amplifications for both eyes, so now we can easily query our `camUniforms` array! Here is the revised vertex shader:
+See what we did there? We treat the original `CameraUniforms` as a single eye and combine both eyes in `camUniforms`. With that out of the way, we need to instruct the vertex shader which matrices to use exactly. How do we do that? Well, we get a special `amplification_id` property as input to our shaders. It allows us to query the index of which vertex amplification are we currently executing. We have two amplifications for both eyes, so now we can easily query our `camUniforms` array! Here is the revised vertex shader:
 
 ```metal
 vertex VertexOut myVertexShader(
@@ -448,7 +443,7 @@ vertex VertexOut myVertexShader(
 }
 ```
 
-And that's it! Our output textures and render commands have been setup correctly, we have obtained all required matrices and compiled our vertex shader with support for Vertex Amplification.
+And that's it! Our output textures and render commands have been setup correctly, we have obtained all required matrices and compiled our vertex shader with support for vertex amplification.
 
 ##### Fragment Shader
 

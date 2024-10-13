@@ -158,7 +158,7 @@ pipelineStateDescriptor.maxVertexAmplificationCount = 2
 
 #### Encoding and submitting a render pass to the GPU
 
-We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline configuration with vertex amplification enabled. We can use it to create a render pipeline, represented by `MTLRenderPipelineState`. Once this render pipeline has been created created, the call to render this pipeline needs to be encoded into list of per-frame commands to be submitted to the GPU. What are examples of such commands? Imagine we are building a game with two objects and on each frame we do the following operations:
+We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline configuration with vertex amplification enabled. We can use it to create a render pipeline, represented by `MTLRenderPipelineState`. Once this render pipeline has been created, the call to render this pipeline needs to be encoded into list of per-frame commands to be submitted to the GPU. What are examples of such commands? Imagine we are building a game with two objects and on each frame we do the following operations:
 
 1. Set the clear color before rendering.
 2. Set the viewport size.

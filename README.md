@@ -244,7 +244,7 @@ These matrices represent each eye's position and orientation **with regards to t
 
 Obtaining any of these two matrices is a 3 step process:
 
-1. Obtain Apple Vision's view transform **pose** matrix that indicates Apple Vision's position and orientation in the world coordinate system.
+1. Obtain Apple Vision view transform **pose** matrix that indicates the device position and orientation in the world coordinate system.
 
 This is global and not tied to a specific eye. It has nothing do to with Compositor Services or the current frame's `Drawable`. Instead, to obtain it, we need to use ARKit and more specifically the visionOS-specific [`WorldTrackingProvider`](https://developer.apple.com/documentation/arkit/worldtrackingprovider), which is a source of live data about the device pose and anchors in a person’s surroundings. Here is some code:
 

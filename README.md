@@ -1,7 +1,7 @@
 # Rendering 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
-   1. Why write this article?   
+   1. Why Write this article?   
    1. `Metal` API
    2. `Compositor Services` API
 3. Creating and configuring a `LayerRenderer`

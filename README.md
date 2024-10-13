@@ -1,14 +1,13 @@
 # Rendering 3D graphics on Apple Vision with the Metal API
 
-## Dissecting a Frame of RAYQUEST
-
 1. Introduction
+   1. Why write this article?   
    1. `Metal` API
    2. `Compositor Services` API
-2. Creating and configuring a `LayerRenderer`
+3. Creating and configuring a `LayerRenderer`
    1. Variable Rate Rasterization (Foveation)
    2. Organizing the Metal Textures Used for Presenting the Rendered Content
-3. Vertex Amplification
+4. Vertex Amplification
    1. Preparing to Render with Support for Vertex Amplification
    2. Encoding and Submitting a Render Pass to the GPU
    3. Enabling Vertex Amplification for a Render Pass
@@ -17,10 +16,10 @@
       1. Vertex Shader
       2. Fragment Shader
    6. Rendering
-4. Supporting Both Stereoscopic and Flat 2D Display Rendering
+5. Supporting Both Stereoscopic and Flat 2D Display Rendering
    1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
    3. Adapting our Vertex Shader        
-5. Updating and Encoding a Frame of Content
+6. Updating and Encoding a Frame of Content
    1. Rendering on a Separate Thread
    2. Fetching a Next Frame for Drawing
    3. Handling User Input
@@ -49,9 +48,13 @@
 
 ## Introduction
 
-At the time of writing, Apple Vision Pro has been available for seven months, with numerous games released and an increasing number of developers entering this niche. When it comes to rendering, most opt for established game engines like Unity or Apple's high-level APIs like RealityKit. However, there's another option that's been available since the beginning: building your own rendering engine using the Metal API. Though challenging, this approach offers full control over the rendering pipeline, down to each byte and command submitted to the GPU on each frame.
+At the time of writing, Apple Vision Pro has been available for seven months, with numerous games released and an increasing number of developers entering this niche. When it comes to rendering, most opt for established game engines like Unity or Apple's high-level APIs like RealityKit. However, there's another option that's been available since the beginning: building your own rendering engine using the Metal API. Though challenging, this approach offers full control over the rendering pipeline, down to each byte and command submitted to the GPU on each frame. It is also a lot of fun.
 
 > **_NOTE:_**: visionOS 2.0 enables rendering graphics with the Metal API and compositing them in **mixed** mode with the user’s surroundings, captured by the device's cameras. This article focuses on developing Metal apps for fully immersive mode, though passthrough rendering will be discussed at the end. At the time of Apple Vision Pro release, visionOS 1.0 allowed for rendering with the Metal API in **immersive** mode only.
+
+### Why write this article?
+
+Mainly as a summarization of all I have learned for myself. I am not gonna present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link their relevant docs and examples as much as possible as I explain the upcomming concepts.
 
 ### Metal
 
@@ -59,17 +62,17 @@ To directly quote Apple:
 
 > Metal is a modern, tightly integrated graphics and compute API coupled with a powerful shading language that is designed and optimized for Apple platforms. Its low-overhead model gives you direct control over each task the GPU performs, enabling you to maximize the efficiency of your graphics and compute software. Metal also includes an unparalleled suite of GPU profiling and debugging tools to help you improve performance and graphics quality.
 
-I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and with plenty of tutorials and examples. I personally find it **very nice** to work with. If this is your first time reading about it and you want to learn it I suggest you read [this book](https://www.kodeco.com/books/metal-by-tutorials/v4.0). It is more explicit than an API such as OpenGL ES, there is more planning involved in setting up your rendering pipeline and rendering frames, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode has high quality built-in Metal profiler and debugger that allows for inspecting your GPU workloads and your shader inputs, code and outputs.
+I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and with plenty of tutorials and examples. I personally find it **very nice** to work with. If this is your first time reading about it and you want to learn it I suggest you read [this book](https://www.kodeco.com/books/metal-by-tutorials/v4.0). It is more explicit than APIs such as OpenGL ES, there is more planning involved in setting up your rendering pipeline and rendering frames, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode has high quality built-in Metal profiler and debugger that allows for inspecting your GPU workloads and your shader inputs, code and outputs.
 
 ### Compositor Services
 
 Compositor Services is a visionOS-specific API that bridges your SwiftUI code with your Metal rendering engine. It enables you to encode and submit drawing commands directly to the Apple Vision displays, which include separate screens for the left and right eye.
 
-At the app’s initialization, Compositor Services allows us to configure a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object, created behind the scenes, to handle rendering on Apple Vision throughout the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to standard settings. The `LayerRenderer` also supplies timing information to help manage your app’s rendering loop and deliver frames efficiently.
+At the app’s initialization, Compositor Services automatically creates and configures a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object to manage rendering on Apple Vision throughout the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to its standard settings. Additionally, the LayerRenderer supplies timing information to optimize the rendering loop and ensure efficient frame delivery.
 
 ## Creating and configuring a `LayerRenderer`
 
-In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. Here is some boilerplate code:
+In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
 
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
@@ -112,7 +115,10 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
    configuration.isFoveationEnabled = foveationEnabled
 }
 ```
-> **_NOTE:_** Turning on foveation prevents rendering to a framebuffer with smaller dimensions than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has [MetalFX](https://developer.apple.com/documentation/metalfx) that allows us to render to a smaller pixel buffer and use their native libraries to upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`.rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created depending on whether we turned on the `.isFoveationEnabled` property in our layer configuration. We can not use smaller viewport sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps, because the viewport sizes will not match the dimensions Apple already set in the rasterization rate maps.
+
+> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has [MetalFX](https://developer.apple.com/documentation/metalfx) that allows us to render to a smaller pixel buffer and use their native libraries to upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`.rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created depending on whether we turned on the `.isFoveationEnabled` property in our layer configuration. We don't have a say in this property direct creation. We can not use smaller viewport sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps, because the viewport sizes will not match the dimensions Apple already set in the rasterization rate maps. We can not change the dimensions of the predefined rasterization rate maps.
+>
+> With foveation disabled you **can** render to a pixel buffer smaller in resolution than the device display. You can render at, say, 75% of the native resolution and use MetalFX to upscale it to 100%. This approach works on Apple Vision.
 
 ### Organizing the Metal Textures Used for Presenting the Rendered Content
 
@@ -120,9 +126,9 @@ We established we need to render our content as two views to both Apple Vision d
 
 1. [`LayerRenderer.Layout.dedicated`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/dedicated) - A layout that assigns a separate texture to each rendered view. So two eyes - two textures.
 2. [`LayerRenderer.Layout.shared`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/shared) - A layout that uses a single texture to store the content for all rendered views. One texture big enough for both eyes.
-3. [`LayerRenderer.Layout.layered`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/layered) - A layout that specifies each view’s content as a slice of a single 3D texture with two slices total.
+3. [`LayerRenderer.Layout.layered`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/layered) - A layout that specifies each view’s content as a slice of a single 3D texture with two slices.
 
-Which one should you use? Apple official examples use `.layered`. Ideally `.shared` or `.layered`, as having one texture to manage results in fewer things to keep track of, less commands to submit and less GPU context switches. Some rendering techniques such as Vertex Amplification do not work with `.dedicated`, which expects a separate render pass for each texture, so it is best avoided.
+Which one should you use? Apple official examples use `.layered`. Ideally `.shared` or `.layered`, as having one texture to manage results in fewer things to keep track of, less commands to submit and less GPU context switches. Some rendering techniques such as vertex amplification do not work with `.dedicated`, which expects a separate render pass to draw content for each eye texture, so it is best avoided.
 
 Let's update the configuration code once more:
 
@@ -143,7 +149,7 @@ That takes care of the basic configuration for `LayerRenderer` for rendering our
 
 ### Vertex Amplification
 
-Imagine we have a triangle we want rendered on Apple Vision. A triangle consists of 3 vertices. If we were to render it to a display we would submit 3 vertices to the GPU and let it draw them for us. On Apple Vision we have two displays. How do we go about it? A naive way would be to submit two drawing commands:
+Imagine we have a triangle we want rendered on Apple Vision. A triangle consists of 3 vertices. If we were to render it to a "normal" non-VR display we would submit 3 vertices to the GPU and let it draw them for us. On Apple Vision we have two displays. How do we go about it? A naive way would be to submit two drawing commands:
 
 1. Issue a draw command **A** to render 3 vertices to the left eye display.
 2. Issue a draw command **B** to render the same 3 vertices again, this time for the right eye display.
@@ -152,7 +158,7 @@ Imagine we have a triangle we want rendered on Apple Vision. A triangle consists
 
 This is not optimal as it doubles the commands needed to be submited to the GPU for rendering. A 3 vertices triangle is fine, but for more complex scenes with even moderate amounts of geometry it becomes unwieldly very fast. Thankfully, Metal allows us to submit the 3 vertices once for both displays via a technique called **Vertex Amplification**.
 
-Taken from this great [article](https://developer.apple.com/documentation/metal/render_passes/improving_rendering_performance_with_vertex_amplification) on Vertex Amplification from Apple:
+Taken from this great [article](https://developer.apple.com/documentation/metal/render_passes/improving_rendering_performance_with_vertex_amplification) on vertex amplification from Apple:
 
 > With vertex amplification, you can encode drawing commands that process the same vertex multiple times, one per render target.
 
@@ -160,7 +166,7 @@ Does this sound useful? Well it is, because one "render target" from the quote a
 
 #### Preparing to Render with Support for Vertex Amplification
 
-But back to vertex amplification as means for efficient rendering to both Apple Vision displays. Say we want to render the aforementioned 3 vertices triangle on Apple Vision. In order to render anything, on any Apple device, be it with a traditional display or two displays set-up, we need to create a `MTLRenderPipelineDescriptor` that will hold all of the state needed to render an object in a single render pass. Stuff like the vertex and fragment shaders to use, the color and depth pixel formats to use when rendering, the sample count if we use MSAA and so on. In the case of Apple Vision, we need to explicitly set the `maxVertexAmplificationCount` property when creating our `MTLRenderPipelineDescriptor`:
+But back to vertex amplification as means for efficient rendering to both Apple Vision displays. Say we want to render the aforementioned 3 vertices triangle on Apple Vision. In order to render anything, on any Apple device, be it with a non-VR display or two displays set-up, we need to create a `MTLRenderPipelineDescriptor` that will hold all of the state needed to render an object in a single render pass. Stuff like the vertex and fragment shaders to use, the color and depth pixel formats to use when rendering, the sample count if we use MSAA and so on. In the case of Apple Vision, we need to explicitly set the `maxVertexAmplificationCount` property when creating our `MTLRenderPipelineDescriptor`:
 
 ```swift
 let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
@@ -184,9 +190,11 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 8. Render object B.
 9. Finally submit all of the above commands to the GPU
 
-All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
+All of these rendering commands represent a **render pass** that happens on each frame while our game is running. This render pass is represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from steps 1 to 7 into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been issued and submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
 
-It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision's internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
+> **_NOTE:_** A game can and often does have multiple render passes per frame. Imagine you are building a first person racing game. The main render pass would draw the interior of your car, your opponents' cars, the world, the trees and so on. A second render pass will draw all of the HUD and UI on top. A third render pass might be used for drawing shadows. A fourth render pass might render the objects in your rearview mirror and so on. All of these render passes need to be encoded and submitted to the GPU on each new frame for drawing.
+
+It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit "compute" commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision's internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
 
 #### Enabling Vertex Amplification for a Render Pass
 
@@ -196,7 +204,7 @@ When creating a render pass and submitting render commands for a frame via a `MT
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
 3. Specifying the viewport sizes for each render target.
 
-Remember, we are dealing with two render targets on Apple Vision. So the number of amplifications is, of course, 2. The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
+Remember, we are using a `.layered` texture format in Compositor Services and dealing with two render targets on Apple Vision. So the number of amplifications is, in this case, 2. The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame's [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) from the `LayerRenderer` object visionOS created for us during the app initialization. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```swift
 // Get the current frame from Compositor Services
@@ -234,14 +242,16 @@ renderEncoder.setViewports(viewports)
 
 #### Computing the View and Projection Matrices for Each Eye
 
-Okay, we enabled foveation, created our `LayerRenderer` that holds the textures we will render to, and have vertex amplification enabled. Next we need to compute the correct view and projection matrices **for each eye** to use during rendering. If you have done computer graphics work or used a game engine like Unity, you know that over there we create a virtual camera that sits somewhere in our 3D world, is oriented to point at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and so on. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to clip space, which in turn is is further transformed by the GPU to finally end up in device screen space coordinates.
+Okay, we created our `LayerRenderer` that holds the textures we will render to, enabled foveation, and have vertex amplification enabled. Next we need to compute the correct view and projection matrices **for each eye** to use during rendering. If you have done computer graphics work or used a game engine like Unity, you know that usually we create a virtual camera that sits somewhere in our 3D world, is oriented at a specific direction, has a specific field of view, a certain aspect ratio, a near and a far plane and other attributes. We use the view and projection matrix of the camera to transform a vertex's 3D position in our game world to clip space, which in turn is is further transformed by the GPU to finally end up in device screen space coordinates.
 
-When rendering to a 2D screen, it is up to us, as programmers, to construct this virtual camera and decide what values all of these properties will have. Since our rendered objects' positions are ultimately presented on a 2D screen that we look at from some distance, these properties do not have to be "physically based" to match our eyes and field of view. We can go crazy with really small range of field of view, use a portrait aspect ratio, some weird projection ("fish eye") and so on for rendering. Point being that we are given leeway on how to construct the camera we use for rendering depending on the effect and look we are trying to achieve.
+When rendering to a non-VR screen, it is up to us, as programmers, to construct this virtual camera and decide what values all of these properties will have. Since our rendered objects' positions are ultimately presented on a 2D screen that we look at from some distance, these properties do not have to be "physically based" to match our eyes and field of view. We can go crazy with really small range of field of view, use a portrait aspect ratio, some weird projection ("fish eye") and so on for rendering. Point being that we are given leeway on how to construct the camera we use for rendering depending on the effect and look we are trying to achieve.
 
-When rendering on Apple Vision we can not set these camera properties or augment them manually in any way as it might cause sickness. Changing the default camera properties will result in things looking "weird", and not matching our eyes (remember the initial eye setup you had to do when you bought your Apple Vision?). I can't imagine Apple being okay with publishing apps that augment the default camera projections as they might break the immersion and make the product look crappy.
+When rendering on Apple Vision we can not set these camera properties or augment them manually in any way as it might cause sickness. Changing the default camera properties will result in things looking "weird", and not matching our eyes (remember the initial eye setup you had to do when you bought your Apple Vision?). I can't imagine Apple being okay with publishing apps that augment the default camera projections as they might break the immersion, feel "off" and make the product look crappy.
 
-So on each frame, we need to query 2 view matrices representing each eye's position in the physical world. Similarly, we need to query 2 perspective projection matrices that encode the **correct** aspect, field of view, near and far planes for each eye from the current frame `LayerRenderer.Drawable`. Each eye's "view" is represented by [`LayerRenderer.Drawable.View
-`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view). Compositor Services provides a view for each distinct eye view, i.e. each eye display. It is up to us to obtain these 4 matrices on each frame from both the left and right eye `LayerRenderer.Drawable.View` and use them to render our content to both of the displays. These 4 matrices are:
+My point is that we have to use the projection and view matrices given to us by Apple Vision. We are trying to simulate a world in immersive mode or mix our content with the real environment in mixed mode. It should feel natural to the user, as if she is not even wearing a device. We should not downscale the field of view, change the aspect ratio or mess with any other settings.
+
+So on each frame, we need to query 2 view matrices representing each eye's position and orientation in the physical world. Similarly, we need to query 2 perspective projection matrices that encode the **correct** aspect, field of view, near and far planes for each eye from the current frame `LayerRenderer.Drawable`. Each eye's "view" is represented by [`LayerRenderer.Drawable.View
+`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view). Compositor Services provides a distinct view for each eye, i.e. each display. It is up to us to obtain these 4 matrices on each frame from both the left and right eye `LayerRenderer.Drawable.View` and use them to render our content to both of the displays. These 4 matrices are:
 
 1. Left eye view matrix
 3. Left eye projection matrix
@@ -252,7 +262,7 @@ So on each frame, we need to query 2 view matrices representing each eye's posit
 
 These matrices represent each eye's position and orientation **with regards to the world coordinate space**. As you move around your room the view matrices will change. Shorter people will get different view matrices then tall people. You sitting on a couch and looking to the left will produce different view matrices than you standing up and looking to the right.
 
-Obtaining any of these matrices is a 3 step process:
+Obtaining any of these two matrices is a 3 step process:
 
 1. Obtain Apple Vision's view transform **pose** matrix that indicates Apple Vision's position and orientation in the world coordinate system.
 
@@ -280,7 +290,7 @@ let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: time)
 let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.identity
 ```
 
-`simdDeviceAnchor` now holds Apple Vision's transform pose matrix.
+`simdDeviceAnchor` now holds Apple Vision's head transform pose matrix.
    
 2. Obtain the eyes' local transformation matrix
 

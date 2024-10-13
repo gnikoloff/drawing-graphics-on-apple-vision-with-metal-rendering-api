@@ -34,7 +34,7 @@ At the time of writing, Apple Vision Pro has been available for seven months, wi
 
 ### Why Write This Article?
 
-Mainly as a summarization of all I have learned for myself. I used all of this while building [RAYQUEST](https://rayquestgame.com/), my first game for Apple Vision. I am not gonna present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link their relevant docs and examples as much as possible as I explain the upcomming concepts.
+Mainly as a recap of all I have learned for myself. I used all of this while building [RAYQUEST](https://rayquestgame.com/), my first game for Apple Vision. I am not going to present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link Apple's relevant docs and examples as much as possible as I explain the upcomming concepts.
 
 ### Metal
 
@@ -42,17 +42,17 @@ To directly quote Apple:
 
 > Metal is a modern, tightly integrated graphics and compute API coupled with a powerful shading language that is designed and optimized for Apple platforms. Its low-overhead model gives you direct control over each task the GPU performs, enabling you to maximize the efficiency of your graphics and compute software. Metal also includes an unparalleled suite of GPU profiling and debugging tools to help you improve performance and graphics quality.
 
-I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and with plenty of tutorials and examples. I personally find it **very nice** to work with. If this is your first time reading about it and you want to learn it I suggest you read [this book](https://www.kodeco.com/books/metal-by-tutorials/v4.0). It is more explicit than APIs such as OpenGL ES, there is more planning involved in setting up your rendering pipeline and rendering frames, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode has high quality built-in Metal profiler and debugger that allows for inspecting your GPU workloads and your shader inputs, code and outputs.
+I will not focus too much on the intristics of Metal in this article, however will mention that the API is mature, well documented and with plenty of tutorials and examples. I personally find it **very nice** to work with. If you want to learn it I suggest you read [this book](https://www.kodeco.com/books/metal-by-tutorials/v4.0). It is more explicit than APIs such as OpenGL ES, there is more planning involved in setting up your rendering pipeline and rendering frames, but is still very approachable and more beginner friendly then, say, Vulkan or DirectX12. Furthermore, Xcode has high quality built-in Metal profiler and debugger that allows for inspecting your GPU workloads and your shader inputs, code and outputs.
 
 ### Compositor Services
 
 Compositor Services is a visionOS-specific API that bridges your SwiftUI code with your Metal rendering engine. It enables you to encode and submit drawing commands directly to the Apple Vision displays, which include separate screens for the left and right eye.
 
-At the app’s initialization, Compositor Services automatically creates and configures a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object to manage rendering on Apple Vision throughout the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to its standard settings. Additionally, the LayerRenderer supplies timing information to optimize the rendering loop and ensure efficient frame delivery.
+At the app’s initialization, Compositor Services automatically creates and configures a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object to manage rendering on Apple Vision during the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to its standard settings. Additionally, the `LayerRenderer` supplies timing information to optimize the rendering loop and ensure efficient frame delivery.
 
 ## Creating and configuring a `LayerRenderer`
 
-In our scene creation code, we need to pass a type that adopts `CompositorLayerConfiguration` as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
+In our scene creation code, we need to pass a type that adopts the `CompositorLayerConfiguration` protocol as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision's displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
 
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {
@@ -84,7 +84,7 @@ struct MyApp: App {
 
 Next thing we need to set up is whether to enable support for **foveation** in `LayerRenderer`. Foveation allows us to render at a higher resolution the content our eyes gaze directly at and render at a lower resolution everything else. That is very beneficial in VR as it allows for improved performance.
 
-Apple Vision does eye-tracking and foveation automatically for us (in fact, it is not possible for developers to access the user's gaze **at all** due to security concerns). So we need to setup our `LayerRenderer` to support it and we will get it "for free" during rendering. When we render to the `LayerRenderer` textures, Apple Vision will automatically adjust the resolution to be higher at the regions of the textures we directly gaze at. Here is the previous code that configures the `LayerRenderer`, updated with support for foveation:
+Apple Vision does eye-tracking and foveation automatically for us (in fact, it is not possible for developers to access the user's gaze **at all** due to security concerns). We need to setup our `LayerRenderer` to support it and we will get it "for free" during rendering. When we render to the `LayerRenderer` textures, Apple Vision will automatically adjust the resolution to be higher at the regions of the textures we directly gaze at. Here is the previous code that configures the `LayerRenderer`, updated with support for foveation:
 
 ```swift
 func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: inout LayerRenderer.Configuration) {
@@ -96,19 +96,19 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
 }
 ```
 
-> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has [MetalFX](https://developer.apple.com/documentation/metalfx) that allows us to render to a smaller pixel buffer and use their native libraries to upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`.rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created depending on whether we turned on the `.isFoveationEnabled` property in our layer configuration. We don't have a say in this property direct creation. We can not use smaller viewport sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps, because the viewport sizes will not match the dimensions Apple already set in the rasterization rate maps. We can not change the dimensions of the predefined rasterization rate maps.
+> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
 >
 > With foveation disabled you **can** render to a pixel buffer smaller in resolution than the device display. You can render at, say, 75% of the native resolution and use MetalFX to upscale it to 100%. This approach works on Apple Vision.
 
 ### Organizing the Metal Textures Used for Presenting the Rendered Content
 
-We established we need to render our content as two views to both Apple Vision displays. We have three options when it comes to the organization of the textures' layout we use for drawing:
+We established we need to render our content as two views to both Apple Vision left and right displays. We have three options when it comes to the organization of the textures' layout we use for drawing:
 
-1. [`LayerRenderer.Layout.dedicated`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/dedicated) - A layout that assigns a separate texture to each rendered view. So two eyes - two textures.
+1. [`LayerRenderer.Layout.dedicated`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/dedicated) - A layout that assigns a separate texture to each rendered view. Two eyes - two textures.
 2. [`LayerRenderer.Layout.shared`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/shared) - A layout that uses a single texture to store the content for all rendered views. One texture big enough for both eyes.
 3. [`LayerRenderer.Layout.layered`](https://developer.apple.com/documentation/compositorservices/layerrenderer/layout/layered) - A layout that specifies each view’s content as a slice of a single 3D texture with two slices.
 
-Which one should you use? Apple official examples use `.layered`. Ideally `.shared` or `.layered`, as having one texture to manage results in fewer things to keep track of, less commands to submit and less GPU context switches. Some rendering techniques such as vertex amplification do not work with `.dedicated`, which expects a separate render pass to draw content for each eye texture, so it is best avoided.
+Which one should you use? Apple official examples use `.layered`. Ideally `.shared` or `.layered`, as having one texture to manage results in fewer things to keep track of, less commands to submit and less GPU context switches. Some important to Apple Vision rendering techniques such as vertex amplification do not work with `.dedicated`, which expects a separate render pass to draw content for each eye texture, so it is best avoided.
 
 Let's update the configuration code once more:
 
@@ -125,7 +125,7 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
 }
 ```
 
-That takes care of the basic configuration for `LayerRenderer` for rendering our content. We set up our textures' pixel formats, foveation and the texture layout to use for rendering. Let's move on to rendering our content.
+That takes care of the basic configuration for `LayerRenderer` for rendering our content. We set up our textures' pixel formats, whether to enable foveation and the texture layout to use for rendering. Let's move on to rendering our content.
 
 ### Vertex Amplification
 

@@ -18,32 +18,13 @@
 5. Updating and Encoding a Frame of Content
    1. Rendering on a Separate Thread
    2. Fetching a Next Frame for Drawing
-   3. Handling User Input
-   4. Waiting Until Optimal Rendering Time
-   5. Issuing Draw Calls
-   6. Frame Submission
-5. Supporting Both Stereoscopic and Flat 2D Display Rendering
+   3. Getting Predicted Render Deadlines
+   4. Updating Our App State Before Rendering
+   5. Waiting Until Optimal Rendering Time
+   6. Frame Submission Phase
+5. Supporting Both Stereoscopic and non-VR Display Rendering 
    1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
-   3. Adapting our Vertex Shader        
-  
-
-4. Dissecting a Frame of RAYQUEST
-5. Pre-Rendering Tasks
-   1. Capturing user input via ARKit
-   2. Compute
-   3. Animation / Tweening
-   4. Frame Prediction
-      1. Querying the Next Frame
-      2. Waiting Until Optimal Rendering Time
-      3. Frame Submission
-6. Base / Forward MSAA Pass
-   1. Opaque Objects
-   2. Skybox
-   3. Transparent Objects
-   4. Resolving MSAA Texture
-7. Bloom Pass
-8. Composite Pass
-9. Passthrough Rendering
+   3. Adapting our Vertex Shader
 
 ## Introduction
 
@@ -471,13 +452,210 @@ All that's left to do is...
 
 ## Updating and Encoding a Frame of Content
 
+### Rendering on a Separate Thread
 
+Rendering on a separate thread is recommended in general but especially important on Apple Vision. That is because, during rendering, we will pause the render thread to wait until the optimal rendering time provided to us by Compositor Services. We want the main thread to be able to continue to run, process user inputs, network and so on in the meantime.
 
-### Supporting both stereoscopic and flat 2D display rendering 
+How do we go about this? Here is some code:
+
+```swift
+@main
+struct MyApp: App {
+  var body: some Scene {
+    WindowGroup {
+      ContentView()
+    }
+    ImmersiveSpace(id: "ImmersiveSpace") {
+      CompositorLayer(configuration: ContentStageConfiguration()) { layerRenderer in
+         let engine = GameEngine(layerRenderer)
+         engine.startRenderLoop()
+      }
+    }
+  }
+}
+
+class GameEngine {
+   private var layerRenderer: LayerRenderer
+
+   public init(_ layerRenderer: LayerRenderer) {
+      self.layerRenderer = layerRenderer
+   }
+
+   public func startRenderLoop() {
+      let renderThread = Thread {
+         self.renderLoop()
+       }
+       renderThread.name = "Render Thread"
+       renderThread.start()
+
+       layerRenderer.onSpatialEvent = { eventCollection in
+         // process spatial events
+       }
+   }
+
+   private func renderLoop() {
+      while true {
+        if layerRenderer.state == .invalidated {
+          print("Layer is invalidated")
+          return
+        } else if layerRenderer.state == .paused {
+          layerRenderer.waitUntilRunning()
+          continue
+        } else {
+          autoreleasepool {
+            // render next frame here
+            onRender()
+          }
+        }
+      }
+   }
+
+   private func onRender() {
+      // ...
+   }
+}
+```
+
+We start a separate thread that on each frame checks the [`LayerRenderer.State`](https://developer.apple.com/documentation/compositorservices/layerrenderer/state-swift.enum) property. Depending on this property value, it may skip the current frame, quit the render loop entirely or draw to the current frame. The main thread is unaffected and continues running other code and waits for spatial events.
+
+### Fetching a Next Frame for Drawing
+
+Remember all the code we wrote earlier that used `LayerRenderer.Frame`? We obtained the current `Drawable` from it and queried it for the current frame view and projection matrices, view mappings and so on. This `LayerRenderer.Frame` is obviously different across frames and we have to constantly query it before using it and encoding draw commands to the GPU. Let's expand upon the `onRender` method from the previous code snippet and query the next frame for drawing:
+
+```swift
+class GameEngine {
+   // ...
+   private func onRender() {
+      guard let frame = layerRenderer.queryNextFrame() else {
+         print("Could not fetch current render loop frame")
+         return
+       }
+   }
+}
+```
+
+### Getting Predicted Render Deadlines
+
+We need to block our render thread until the optimal rendering time to start the submission phase given to us by Compositor Services. Let's expand our `onRender` method:
+
+```swift
+private func onRender() {
+   guard let frame = layerRenderer.queryNextFrame() else {
+      print("Could not fetch current render loop frame")
+      return
+   }
+   guard let timing = frame.predictTiming() else {
+      return
+   }
+}
+```
+
+### Updating Our App State Before Rendering
+
+Before doing any rendering, we need to update our app state. What do I mean by this? We usually have to process actions such as:
+
+1. User input
+2. Animations
+3. Frustum Culling
+5. Physics
+6. Enemy AI
+7. Audio
+
+These tasks can be done on the CPU or on the GPU via compute shaders, it does not matter. What does matter is that we need to process and run all of them **before rendering**, because they will dictate what and how exactly do we render. As an example, if you find out that two enemy tanks are colliding during this update phase, you may want to color them differently during rendering. If the user is pointing at a button, you may want to change the appearance of the scene. Apple calls this the **update phase** in their docs btw.
+
+> **_NOTE:_** All of the examples above refer to non-rendering work. However we **can** do rendering during the update phase!
+> The important distinction that Apple makes is whether we rely on the device anchor information during rendering. It is important to do only rendering work that **does not** depend on the device anchor in the update phase. Stuff like shadow map generation would be a good candidate for this. We render our content from the point of view of the sun, so the device anchor is irrelevant to us during shadowmap rendering.
+> Remember, it still may be the case that we have to wait until optimal rendering time and skip the current frame. We do not have reliable device anchor information **yet** during the update phase.
+
+We mark the start of the update phase by calling Compositor Service's [`startUpdate`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame/startupdate()) method. Unsurprisingly, after we are done with the update phase we call [`endUpdate`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame/endupdate()) that notifies Compositor Services that you have finished updating the app-specific content you need to render the frame. Here is our updated render method:
+
+```swift
+private func onRender() {
+   guard let frame = layerRenderer.queryNextFrame() else {
+      print("Could not fetch current render loop frame")
+      return
+   }
+   guard let timing = frame.predictTiming() else {
+      return
+   }
+
+   frame.startUpdate()
+
+   // do your game's physics, animation updates, user input, raycasting and non-device anchor related rendering work here
+
+   frame.endUpdate()
+}
+```
+
+### Waiting Until Optimal Rendering Time
+
+We already queried and know the optimal rendering time given to us by Compositor Services. After wrapping up our update phase, we need to block our render thread until the optimal time to start the submission phase of our frame. To block the thread we can use Compositor Service's [`LayerRenderer.Clock`](https://developer.apple.com/documentation/compositorservices/layerrenderer/clock) and more specifically its [`.wait()`](https://developer.apple.com/documentation/compositorservices/layerrenderer/clock/wait(until:tolerance:)) method:
+
+```swift
+private func onRender() {
+   guard let frame = layerRenderer.queryNextFrame() else {
+      print("Could not fetch current render loop frame")
+      return
+   }
+   guard let timing = frame.predictTiming() else {
+      return
+   }
+
+   frame.startUpdate()
+
+   // do your game's physics, animation updates, user input, raycasting and non-device anchor related rendering work here
+
+   frame.endUpdate()
+
+   // block the render thread until optimal input time
+   LayerRenderer.Clock().wait(until: timing.optimalInputTime)
+}
+```
+
+### Frame Submission Phase
+
+We have ended our update phase and waited until the optimal rendering time. It is time to start the **submission phase**. **That** is the right time to query the device anchor information, compute the correct view and projection matrices and submit any view-related drawing commands with Metal (basically all the steps we did in the "Vertex Amplification" chapter of this article).
+
+Once we have submitted all of our drawing and compute commands to the GPU, we end the frame submission. The GPU will take all of the submited commands and execute them for us.
+
+```swift
+private func onRender() {
+   guard let frame = layerRenderer.queryNextFrame() else {
+      print("Could not fetch current render loop frame")
+      return
+   }
+   guard let timing = frame.predictTiming() else {
+      return
+   }
+
+   frame.startUpdate()
+
+   // do your game's physics, animation updates, user input, raycasting and non-device anchor related rendering work here
+
+   frame.endUpdate()
+
+   LayerRenderer.Clock().wait(until: timing.optimalInputTime)
+
+   frame.startSubmission()
+
+   // we already covered this code, query device anchor position and orientation in physical world
+   let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: time)
+   let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? float4x4.identity
+
+   // submit all of your rendering and compute related Metal commands here
+
+   // mark the frame as submitted and hand it to the GPU
+   frame.endSubmission()
+}
+```
+
+And that's it! To recap: we have to use a dedicated render thread for drawing and Compositor Services' methods to control its execution. We are presented with two phases: update and submit. We update our app state in the update phase and issue draw commands with Metal in the submit phase.
+
+## Supporting Both Stereoscopic and non-VR Display Rendering 
 
 As you can see, Apple Vision requires us to **always** think in terms of two eyes and two render targets. Our rendering code, matrices and shaders were built around this concept. So the question is, can we write a renderer that supports "traditional" non-VR and stereoscoping rendering simultaneously? Of course we can! Doing so however requires some careful planning and inevitably some preprocessor directives in your codebase.
 
-#### Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`
+### Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`
 
 On Apple Vision, you configure a `LayerRenderer` at init time and the system gives you `LayerRenderer.Frame.Drawable` on each frame to draw to. On macOS / iOS / iPadOS and so on, you create a `MTKView` and a `MTKViewDelegate` that allows you to hook into the system resizing and drawing updates. In both cases you present your rendered content to the user by drawing to the texture provided by the system for you. How would this look in code? How about this:
 
@@ -509,7 +687,7 @@ By using preprocessor directives in Swift, we can build our project for differen
 
 It should be noted that the 2D render path will omit all of the vertex amplification commands we prepared earlier on the CPU to be submitted to the GPU for drawing. Stuff like `renderEncoder.setVertexAmplificationCount(2, viewMappings: &viewMappings)` and `renderEncoder.setViewports(viewports)` is no longer needed.
 
-#### Adapting our Vertex Shader
+### Adapting our Vertex Shader
 
 The vertex shader we wrote earlier needs some rewriting to support non-Vertex Amplified rendering. That can be done easily with [Metal function constants](https://developer.apple.com/documentation/metal/using_function_specialization_to_build_pipeline_variants). If you don't know what they are or how to use them, please refer to the linked article first. They allow us to compile one shader binary and then conditionally enable / disable things in it when using it to build render or compute pipelines. Take a look:
 
@@ -552,18 +730,3 @@ fragment float4 myFragShader() {
 Our updated shader supports both flat 2D and stereoscoping rendering. All we need to set the `isAmplifiedRendering` function constant when creating a `MTLRenderPipelineState` and supply the correct matrices to it.
 
 > **_NOTE:_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require multiple render targets or vertex amplification. With our updated vertex shader, we can now support both.
-
-
-## Updating and Encoding a Frame of Content
-
-
-
-## Dissecting a Frame of RAYQUEST
-
-[RAYQUEST](https://rayquestgame.com/) is my first game published on Apple Vision. It utilises Compositor Services and Metal to deliver advanced graphics at 4K resolution at 90 frames per second. This article will take one random frame of it captured during gameplay and show you how is it rendered by taking you on a trip through the complete rendering pipeline.
-
-So here is the frame we will examine:
-
-![Random frame captured during gameplay of RAYQUEST](rayquest-random-frame.png)
-
-> **_NOTE:_** Before continuing, I would like to mention that aside from the rendering engine capabilities and techniques covered in this article, a lot of the boilerplate, setup code and theory has been covered in this great [official example](https://developer.apple.com/documentation/compositorservices/drawing_fully_immersive_content_using_metal) by Apple. In fact, the origins of the RAYQUEST code lead straight to this example. I strongly suggest it as an accompanying reading to this article.

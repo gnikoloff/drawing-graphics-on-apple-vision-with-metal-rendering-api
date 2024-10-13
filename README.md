@@ -1,7 +1,7 @@
 # Rendering 3D graphics on Apple Vision with the Metal API
 
 1. Introduction
-   1. Why Write this article?   
+   1. Why Write This Article?
    1. `Metal` API
    2. `Compositor Services` API
 3. Creating and configuring a `LayerRenderer`
@@ -32,7 +32,7 @@ At the time of writing, Apple Vision Pro has been available for seven months, wi
 
 > **_NOTE:_**: visionOS 2.0 enables rendering graphics with the Metal API and compositing them in **mixed** mode with the user’s surroundings, captured by the device's cameras. This article focuses on developing Metal apps for fully immersive mode, though passthrough rendering will be discussed at the end. At the time of Apple Vision Pro release, visionOS 1.0 allowed for rendering with the Metal API in **immersive** mode only.
 
-### Why write this article?
+### Why Write This Article?
 
 Mainly as a summarization of all I have learned for myself. I used all of this while building [RAYQUEST](https://rayquestgame.com/), my first game for Apple Vision. I am not gonna present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link their relevant docs and examples as much as possible as I explain the upcomming concepts.
 

@@ -31,7 +31,7 @@
 
 ## Introduction
 
-At the time of writing, Apple Vision Pro has been available for seven months, with numerous games released and an increasing number of developers entering this niche. When it comes to rendering, most opt for established game engines like Unity or Apple's high-level APIs like RealityKit. However, there's another option that's been available since the beginning: building your own rendering engine using the Metal API. Though challenging, this approach offers full control over the rendering pipeline, down to each byte and command submitted to the GPU on each frame. It is also a lot of fun.
+At the time of writing, Apple Vision Pro has been available for seven months, with numerous games released and an increasing number of developers entering this niche. When it comes to rendering, most opt for established game engines like Unity or Apple's high-level APIs like RealityKit. However, there's another option that's been available since the beginning: building your own rendering engine using the Metal API. Though challenging, this approach offers full control over the rendering pipeline, down to each byte and command submitted to the GPU on each frame.
 
 > **_NOTE:_**: visionOS 2.0 enables rendering graphics with the Metal API and compositing them in **mixed** mode with the user’s surroundings, captured by the device's cameras. This article focuses on developing Metal apps for fully immersive mode, though passthrough rendering will be discussed at the end. At the time of Apple Vision Pro release, visionOS 1.0 allowed for rendering with the Metal API in **immersive** mode only.
 

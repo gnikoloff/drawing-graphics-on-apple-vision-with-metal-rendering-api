@@ -7,8 +7,8 @@
    2. Organizing the Metal Textures Used for Presenting the Rendered Content
 3. Vertex Amplification
    1. Preparing to Render with Support for Vertex Amplification
-   2. Encoding and Submitting a Render Pass to the GPU
-   3. Enabling Vertex Amplification for a Render Pass
+   2. Enabling Vertex Amplification for a Render Pass
+   3. Specifying the Viewport Mappings for Both Render Targets
    4. Computing the View and Projection Matrices for Each Eye
    5. Adding Vertex Amplification to our Shaders
       1. Vertex Shader
@@ -155,7 +155,7 @@ pipelineStateDescriptor.maxVertexAmplificationCount = 2
 // ...
 ```
 
-#### Encoding and submitting a render pass to the GPU
+#### Enabling Vertex Amplification for a Render Pass
 
 We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline configuration with vertex amplification enabled. We can use it to create a render pipeline, represented by [`MTLRenderPipelineState`](https://developer.apple.com/documentation/metal/mtlrenderpipelinestate). Once this render pipeline has been created, the call to render this pipeline needs to be encoded into list of per-frame commands to be submitted to the GPU. What are examples of such commands? Imagine we are building a game with two objects and on each frame we do the following operations:
 
@@ -204,13 +204,12 @@ Once created with the definition above, the render pass represented by a [`MTLRe
 
 It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit "compute" commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
 
-#### Enabling Vertex Amplification for a Render Pass
+#### Specifying the Viewport Mappings for Both Render Targets
 
-When creating a render pass and submitting render commands for a frame via a `MTLRenderCommandEncoder`, we need to enable vertex amplification. This consists of three steps:
+We already created a render pass with vertex amplification enabled. We need to instruct Metal on the correct viewport offsets and sizes for each render target before we render. We need to:
 
-1. Specifying the number of amplifications to create.
-2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
-3. Specifying the viewport sizes for each render target.
+2. Specify the view mappings that hold per-output offsets to a specific render target and viewport.
+3. Specify the viewport sizes for each render target.
 
 The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services earlier in the article. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame `LayerRenderer.Frame`. It provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 

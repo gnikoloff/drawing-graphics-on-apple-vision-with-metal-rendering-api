@@ -99,10 +99,6 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
 }
 ```
 
-> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
->
-> With foveation disabled you **can** render to a pixel buffer smaller in resolution than the device display. You can render at, say, 75% of the native resolution and use MetalFX to upscale it to 100%. This approach works on Apple Vision.
-
 ### Organizing the Metal Textures Used for Presenting the Rendered Content
 
 We established we need to render our content as two views to both Apple Vision left and right displays. We have three options when it comes to the organization of the textures' layout we use for drawing:
@@ -174,14 +170,35 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 9. Submit all of the above commands to the GPU
 10. Write the resulting pixel values to some pixel attachment
 
-All of these rendering commands represent a single **render pass** that happens on each frame while our game is running. This render pass is configured via [`MTLRenderPassDescriptor`](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor). We need to configure the render pass to use foveation and output to two render targets simultaneously. 
+All of these rendering commands represent a single **render pass** that happens on each frame while our game is running. This render pass is configured via [`MTLRenderPassDescriptor`](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor). We need to configure the render pass to use foveation and output to two render targets simultaneously.
+
+We need to do two things when setting up our render pass for drawing on Apple Vision:
+
+1. Enable foveation by supplying a [`rasterizationRateMap`](https://developer.apple.com/documentation/metal/mtlrasterizationratemap) property to our `MTLRenderPassDescriptor`. This property, represented by [`MTLRasterizationRateMap`](https://developer.apple.com/documentation/metal/mtlrasterizationratemap) is created for us behind the scenes by the Compositor Services. We don't have a direct say in its creation. Instead, we need to query it. On each frame, `LayerRenderer` will supply us with a [`LayerRenderer.Frame`](https://developer.apple.com/documentation/compositorservices/layerrenderer/frame) object. Among other things, `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable). More on these objects layer. For now, we need to know that this `LayerRenderer.Drawable` object holds not only the textures for both eyes we will render our content into, but also an array of `MTLRasterizationRateMap`s that hold the foveation settings for each display.
+2. Set the amount of render targets we will render to by setting the [`renderTargetArrayLength`](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor/1437975-rendertargetarraylength) property. Since we are dealing with two displays, we set it to 2.
 
 ```swift
+// Get the current frame from Compositor Services
+guard let frame = layerRenderer.queryNextFrame() else {
+   return
+}
+
+// Get the current frame drawable
+guard let drawable = frame.queryDrawable() else {
+   return
+}
+
 let renderPassDescriptor = MTLRenderPassDescriptor()
 // ...
-renderPassDescriptor.rasterizationRateMap = 
+
+// both eyes ultimately have the same foveation settings. Let's use the left eye MTLRasterizationRateMap for both eyes
+renderPassDescriptor.rasterizationRateMap = drawable.rasterizationRateMaps.first
 renderPassDescriptor.renderTargetArrayLength = 2
 ```
+
+> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the `rasterizationRateMaps` property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
+>
+> With foveation disabled you **can** render to a pixel buffer smaller in resolution than the device display. You can render at, say, 75% of the native resolution and use MetalFX to upscale it to 100%. This approach works on Apple Vision.
 
 Once created with the definition above, the render pass represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from the steps above into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been issued and submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
 
@@ -196,6 +213,8 @@ When creating a render pass and submitting render commands for a frame via a `MT
 1. Specifying the number of amplifications to create.
 2. Specifying view mappings that hold per-output offsets to a specific render target and viewport.
 3. Specifying the viewport sizes for each render target.
+
+The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services above. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame `LayerRenderer.Frame`. Among other things, this `LayerRenderer.Frame` holds a [`LayerRenderer.Drawable`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable) that provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```swift
 // Get the current frame from Compositor Services

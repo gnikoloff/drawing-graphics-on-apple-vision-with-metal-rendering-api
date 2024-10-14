@@ -145,7 +145,7 @@ Taken from this great [article](https://developer.apple.com/documentation/metal/
 
 > With vertex amplification, you can encode drawing commands that process the same vertex multiple times, one per render target.
 
-Does this sound useful? Well it is, because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex Amplification is not used only for rendering to both displays on Apple Vision and has it's benefits in general graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
+Does this sound useful? Well it is, because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex Amplification is not used only for rendering to both displays on Apple Vision and has its benefits in general graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
 
 #### Preparing to Render with Support for Vertex Amplification
 

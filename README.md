@@ -27,6 +27,7 @@
    1. Can't render to a smaller resolution pixel buffer when foveation is enabled.
    2. Can't mix foveated and non-foveated rendering
    3. Postprocessing
+   4. True Camera Position
    5. Apple Vision Simulator
 
 ## Introduction

@@ -4,8 +4,8 @@
 
 1. [Introduction](#introduction)
    1. [Why Write This Article?](#why-write-this-article)
-   1. Metal(#metal)
-   2. Compositor Services(#compositor-services)
+   1. [Metal](#metal)
+   2. [Compositor Services](#compositor-services)
 2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
    1. [Variable Rate Rasterization (Foveation)](#variable-rate-rasterization-foveation)
    2. [Organising the Metal Textures Used for Presenting the Rendered Content](#organising-the-metal-textures-used-for-presenting-the-rendered-content)

@@ -25,10 +25,9 @@
    3. Adapting our Vertex Shader
 6. Gotchas
    1. Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled
-   2. Can't mix foveated and non-foveated rendering
-   3. Postprocessing
-   4. True Camera Position
-   5. Apple Vision Simulator
+   2. Postprocessing
+   3. True Camera Position
+   4. Apple Vision Simulator
 
 ## Introduction
 
@@ -766,3 +765,9 @@ I have hinted at some of these throughout the article, but let's recap them and 
 ### Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled
 
 Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
+
+### Postprocessing
+
+Many Apple official examples use compute shaders to postprocess the final scene texture. Implementing sepia, vignette and other graphics techniques happen at the postprocessing stage.
+
+Using compute shaders to write to the textures provided by Compositor Services' `LayerRenderer` is not allowed. That is because these textures do not have the [`MTLTextureUsage.shaderWrite`](https://developer.apple.com/documentation/metal/mtltextureusage/1515854-shaderwrite) flag enabled. We can not enable this flag post factum ourselves, because they were internally created by Compositor Services. So for postprocessing we are left with spawning fullscreen quads for each display and using fragment shader to implement our postprocessing effects. That is allowed because the textures provided by Compositor Services **do** have the [`MTLTextureUsage.renderTarget`](https://developer.apple.com/documentation/metal/mtltextureusage/1515701-rendertarget) flag enabled. That is the case with the textures provided by `MTKView` on other Apple hardware btw.

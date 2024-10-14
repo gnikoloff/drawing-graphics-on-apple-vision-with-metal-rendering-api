@@ -51,7 +51,7 @@ I will not focus too much on the intristics of Metal in this article, however wi
 
 Compositor Services is a visionOS-specific API that bridges your SwiftUI code with your Metal rendering engine. It enables you to encode and submit drawing commands directly to the Apple Vision displays, which include separate screens for the left and right eye.
 
-At the app’s initialization, Compositor Services automatically creates and configures a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object to manage rendering on Apple Vision during the app’s lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to its standard settings. Additionally, the `LayerRenderer` supplies timing information to optimize the rendering loop and ensure efficient frame delivery.
+At the app’s initialization, Compositor Services automatically creates and configures a [`LayerRenderer`](https://developer.apple.com/documentation/compositorservices/layerrenderer) object to manage rendering on Apple Vision during the app lifecycle. This configuration includes texture layouts, pixel formats, foveation settings, and other rendering options. If no custom configuration is provided, Compositor Services defaults to its standard settings. Additionally, the `LayerRenderer` supplies timing information to optimize the rendering loop and ensure efficient frame delivery.
 
 ## Creating and configuring a `LayerRenderer`
 

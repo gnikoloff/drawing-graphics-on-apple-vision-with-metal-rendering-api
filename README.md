@@ -1,7 +1,7 @@
 1. Introduction
-   1. Why Write This Article?
-   1. `Metal` API
-   2. `Compositor Services` API
+   1. [Why Write This Article?](#why-write-this-article)
+   1. [`Metal` API](#metal-api)
+   2. [`Compositor Services` API](#compositor-services-api)
 2. Creating and configuring a `LayerRenderer`
    1. Variable Rate Rasterization (Foveation)
    2. Organizing the Metal Textures Used for Presenting the Rendered Content

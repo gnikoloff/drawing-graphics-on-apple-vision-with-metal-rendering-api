@@ -212,7 +212,7 @@ We already created a render pass with vertex amplification enabled. We need to i
 2. Specify the view mappings that hold per-output offsets to a specific render target and viewport.
 3. Specify the viewport sizes for each render target.
 
-The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services earlier in the article. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame `LayerRenderer.Frame`. It provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
+The viewport sizes and view mappings into each render target depend on our textures' layout we specified when creating the `LayerRenderer` configuration used in Compositor Services earlier in the article. We should **never** hardcode these values ourselves. Instead, we can query this info from the current frame `LayerRenderer.Drawable`. It provides the information and textures we need to draw into for a given frame of content. We will explore these objects in more detail later on, but the important piece of information is that the `LayerRenderer.Drawable` we just queried will give us the correct viewport sizes and view mappings for each render target we will draw to.
 
 ```swift
 // Get the current frame from Compositor Services

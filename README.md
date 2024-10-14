@@ -4,8 +4,8 @@
 
 1. [Introduction](#introduction)
    1. [Why Write This Article?](#why-write-this-article)
-   1. [`Metal`](#metal)
-   2. [`Compositor Services`](#compositor-services)
+   1. Metal(#metal)
+   2. Compositor Services(#compositor-services)
 2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
    1. [Variable Rate Rasterization (Foveation)](#variable-rate-rasterization-foveation)
    2. [Organising the Metal Textures Used for Presenting the Rendered Content](#organising-the-metal-textures-used-for-presenting-the-rendered-content)
@@ -144,7 +144,7 @@ Taken from this great [article](https://developer.apple.com/documentation/metal/
 
 > With vertex amplification, you can encode drawing commands that process the same vertex multiple times, one per render target.
 
-Does this sound useful? Well it is, because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex Amplification is not used only for rendering to both displays on Apple Vision and has its benefits in general graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
+That is very useful to us because one "render target" from the quote above translates directly to one display on Apple Vision. Two displays for the left and right eyes - two render targets to which we can submit the same 3 vertices once, letting the Metal API "amplify" them for us, for free, with hardware acceleration, and render them to both displays **at the same time**. Vertex Amplification is not used only for rendering to both displays on Apple Vision and has its benefits in general graphics techniques such as Cascaded Shadowmaps, where we submit one vertex and render it to multiple "cascades", represented as texture slices, for more adaptive and better looking realtime shadows.
 
 #### Preparing to Render with Support for Vertex Amplification
 
@@ -447,7 +447,7 @@ typedef struct {
 } CameraBothEyesUniforms;
 ```
 
-See what we did there? We treat the original `CameraUniforms` as a single eye and combine both eyes in `camUniforms`. With that out of the way, we need to instruct the vertex shader which pair of matrices to use exactly. How do we do that? Well, we get a special `amplification_id` property as input to our shaders. It allows us to query the index of which vertex amplification are we currently executing. We have two amplifications for both eyes, so now we can easily query our `camUniforms` array! Here is the revised vertex shader:
+We treat the original `CameraUniforms` as a single eye and combine both eyes in `camUniforms`. With that out of the way, we need to instruct the vertex shader which pair of matrices to use exactly. How do we do that? Well, we get a special `amplification_id` property as input to our shaders. It allows us to query the index of which vertex amplification are we currently executing. We have two amplifications for both eyes, so now we can easily query our `camUniforms` array! Here is the revised vertex shader:
 
 ```metal
 vertex VertexOut myVertexShader(
@@ -683,7 +683,7 @@ And that's it! To recap: we have to use a dedicated render thread for drawing an
 
 ## Supporting Both Stereoscopic and non-VR Display Rendering 
 
-As you can see, Apple Vision requires us to **always** think in terms of two eyes and two render targets. Our rendering code, matrices and shaders were built around this concept. So the question is, can we write a renderer that supports "traditional" non-VR and stereoscoping rendering simultaneously? Of course we can! Doing so however requires some careful planning and inevitably some preprocessor directives in your codebase.
+As you can see, Apple Vision requires us to **always** think in terms of two eyes and two render targets. Our rendering code, matrices and shaders were built around this concept. So we have to write a renderer that supports "traditional" non-VR and stereoscoping rendering simultaneously. Doing so however requires some careful planning and inevitably some preprocessor directives in your codebase.
 
 ### Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`
 
@@ -805,7 +805,7 @@ let leftEyeWorldPosition = leftViewWorldMatrix.columns.xyz
 let rightEyeWorldPosition = rightViewWorldMatrix.columns.xyz
 ```
 
-The question now is, what is the true camera single position? We might need it in our shaders, to implement certain effects, etc.
+So what is the true camera position? We might need it in our shaders, to implement certain effects, etc.
 
 Since the difference between them is small, we can just pick a random eye and use its position as the unified camera world position. Or we can take their average:
 

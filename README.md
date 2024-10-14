@@ -119,7 +119,6 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
    let options: LayerRenderer.Capabilities.SupportedLayoutsOptions = foveationEnabled ? [.foveationEnabled] : []
    let supportedLayouts = capabilities.supportedLayouts(options: options)
 
-   // Apple Vision is guaranteed to support .layered, let's fallback to .shared anyway
    configuration.layout = supportedLayouts.contains(.layered) ? .layered : .shared
 }
 ```

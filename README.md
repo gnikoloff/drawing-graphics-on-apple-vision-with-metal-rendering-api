@@ -24,7 +24,7 @@
    1. [Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`](#two-rendering-paths-layerrendererframedrawable-vs-mtkview)
    3. [Adapting our Vertex Shader](#adapting-our-vertex-shader)
 6. [Gotchas](#gotchas)
-   1. [Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled](can-t-render-to-a-smaller-resolution-pixel-buffer-when-foveation-is-enabled)
+   1. [Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled](#cant-render-to-a-smaller-resolution-pixel-buffer-when-foveation-is-enabled)
    2. [Postprocessing](#postprocessing)
    3. [True Camera Position](#true-camera-position)
    4. [Apple Vision Simulator](#apple-vision-simulator)

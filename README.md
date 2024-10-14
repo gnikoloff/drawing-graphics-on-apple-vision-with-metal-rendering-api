@@ -4,7 +4,7 @@
    2. [`Compositor Services`](#compositor-services)
 2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
    1. [Variable Rate Rasterization (Foveation)](#variable-rate-rasterization-foveation)
-   2. [Organizing the Metal Textures Used for Presenting the Rendered Content](#organising-the-metal-textures-used-for-presenting-the-rendered-content)
+   2. [Organising the Metal Textures Used for Presenting the Rendered Content](#organising-the-metal-textures-used-for-presenting-the-rendered-content)
 3. [Vertex Amplification](#vertex-amplification)
    1. [Preparing to Render with Support for Vertex Amplification](#preparing-to-render-with-support-for-vertex-amplification)
    2. [Enabling Vertex Amplification for a Render Pass](#enabling-vertex-amplification-for-a-render-pass)
@@ -99,7 +99,7 @@ func makeConfiguration(capabilities: LayerRenderer.Capabilities, configuration: 
 }
 ```
 
-### Organizing the Metal Textures Used for Presenting the Rendered Content
+### Organising the Metal Textures Used for Presenting the Rendered Content
 
 We established we need to render our content as two views to both Apple Vision left and right displays. We have three options when it comes to the organization of the textures' layout we use for drawing:
 

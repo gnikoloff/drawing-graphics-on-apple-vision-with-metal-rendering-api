@@ -823,7 +823,7 @@ let cameraWorldPosition = (leftEyeWorldPosition + rightEyeWorldPosition) * 0.5
 
 I use this approach in my code.
 
-> **_NOTE_** Using this approach breaks in Xcode's Apple Vision simulator! Took me some time to figure it out initially :) The simulator renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
+> **_NOTE_** Using this approach breaks in Xcode's Apple Vision simulator! The simulator renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
 
 ### Apple Vision Simulator
 

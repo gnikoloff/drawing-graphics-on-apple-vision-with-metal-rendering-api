@@ -171,7 +171,7 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 6. Render object A.
 7. Set `MTLRenderPipelineState` for object B as active
 8. Render object B.
-9. Finally submit all of the above commands to the GPU
+9. Submit all of the above commands to the GPU
 10. Write the resulting pixel values to some pixel attachment
 
 All of these rendering commands represent a single **render pass** that happens on each frame while our game is running. This render pass is configured via [`MTLRenderPassDescriptor`](https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor). We need to configure the render pass to use foveation and output to two render targets simultaneously. 

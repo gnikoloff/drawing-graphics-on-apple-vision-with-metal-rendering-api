@@ -1,8 +1,8 @@
-1. Introduction
+1. [Introduction](#introduction)
    1. [Why Write This Article?](#why-write-this-article)
    1. [`Metal`](#metal)
    2. [`Compositor Services`](#compositor-services)
-2. Creating and configuring a `LayerRenderer`
+2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
    1. Variable Rate Rasterization (Foveation)
    2. Organizing the Metal Textures Used for Presenting the Rendered Content
 3. Vertex Amplification

@@ -781,7 +781,7 @@ let leftViewWorldMatrix = (deviceAnchorMatrix * leftEyeLocalMatrix.transform).in
 let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).inverse
 ```
 
-These are 4x4 matrices and we can easily extract the translation out of them to obtain the camera world position. Something like this:
+These are 4x4 matrices and we can easily extract the translation out of them to obtain each eye's world position. Something like this:
 
 ```swift
 extension SIMD4 {

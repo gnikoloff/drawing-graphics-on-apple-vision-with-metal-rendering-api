@@ -3,7 +3,7 @@
    1. [`Metal`](#metal)
    2. [`Compositor Services`](#compositor-services)
 2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
-   1. Variable Rate Rasterization (Foveation)
+   1. [Variable Rate Rasterization (Foveation)](#variable-rate-rasterization-foveation)
    2. Organizing the Metal Textures Used for Presenting the Rendered Content
 3. Vertex Amplification
    1. Preparing to Render with Support for Vertex Amplification

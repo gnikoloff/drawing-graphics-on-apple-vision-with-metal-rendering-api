@@ -24,7 +24,7 @@
    1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
    3. Adapting our Vertex Shader
 6. Gotchas
-   1. Can't render to a smaller resolution pixel buffer when foveation is enabled.
+   1. Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled
    2. Can't mix foveated and non-foveated rendering
    3. Postprocessing
    4. True Camera Position
@@ -763,6 +763,6 @@ Our updated shader supports both flat 2D and stereoscoping rendering. All we nee
 
 I have hinted at some of these throughout the article, but let's recap them and write them down together.
 
-### Can't render to a smaller resolution pixel buffer when foveation is enabled
+### Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled
 
 Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the [`rasterizationRateMaps`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/rasterizationratemaps) property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.

@@ -37,7 +37,7 @@ At the time of writing, Apple Vision Pro has been available for seven months, wi
 
 ### Why Write This Article?
 
-Mainly as a recap of all I have learned for myself. I used all of this while building [RAYQUEST](https://rayquestgame.com/), my first game for Apple Vision. I am not going to present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link Apple's relevant docs and examples as much as possible as I explain the upcomming concepts.
+Mainly as a recap of all I have learned for myself. I used all of this while building [RAYQUEST](https://rayquestgame.com/), my first game for Apple Vision. I am not going to present any groundbreaking techniques or anything that you can not find in Apple documentation and official examples. In fact, I'd treat this article as an additional reading to the Apple examples. Read them first or read this article first. I will link to Apple's relevant docs and examples as much as possible as I explain the upcomming concepts.
 
 ### Metal
 

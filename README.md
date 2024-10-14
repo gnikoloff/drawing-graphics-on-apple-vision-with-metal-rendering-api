@@ -282,7 +282,7 @@ let arSession = ARKitSession()
 // During app update loop
 Task {
   do {
-    let dataProviders: [DataProvider] = [Self.worldTracking]
+    let dataProviders: [DataProvider] = [worldTracking]
     try await arSession.run(dataProviders)
   } catch {
     fatalError("Failed to run ARSession")

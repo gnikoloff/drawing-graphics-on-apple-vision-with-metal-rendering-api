@@ -507,6 +507,10 @@ class GameEngine {
 
    public init(_ layerRenderer: LayerRenderer) {
       self.layerRenderer = layerRenderer
+
+       layerRenderer.onSpatialEvent = { eventCollection in
+         // process spatial events
+       }
    }
 
    public func startRenderLoop() {
@@ -515,10 +519,6 @@ class GameEngine {
        }
        renderThread.name = "Render Thread"
        renderThread.start()
-
-       layerRenderer.onSpatialEvent = { eventCollection in
-         // process spatial events
-       }
    }
 
    private func renderLoop() {

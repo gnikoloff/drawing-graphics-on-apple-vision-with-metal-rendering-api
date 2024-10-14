@@ -801,8 +801,8 @@ extension SIMD4 {
 }
 
 // SIMD3<Float> vectors representing the XYZ position of each eye
-let leftEyeWorldPosition = leftViewWorldMatrix.columns.xyz
-let rightEyeWorldPosition = rightViewWorldMatrix.columns.xyz
+let leftEyeWorldPosition = leftViewWorldMatrix.columns.3.xyz
+let rightEyeWorldPosition = rightViewWorldMatrix.columns.3.xyz
 ```
 
 So what is the true camera position? We might need it in our shaders, to implement certain effects, etc.

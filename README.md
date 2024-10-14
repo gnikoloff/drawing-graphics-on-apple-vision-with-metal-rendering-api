@@ -4,30 +4,30 @@
    2. [`Compositor Services`](#compositor-services)
 2. [Creating and configuring a `LayerRenderer`](#creating-and-configuring-a-layerrenderer)
    1. [Variable Rate Rasterization (Foveation)](#variable-rate-rasterization-foveation)
-   2. Organizing the Metal Textures Used for Presenting the Rendered Content
-3. Vertex Amplification
-   1. Preparing to Render with Support for Vertex Amplification
-   2. Enabling Vertex Amplification for a Render Pass
-   3. Specifying the Viewport Mappings for Both Render Targets
-   4. Computing the View and Projection Matrices for Each Eye
-   5. Adding Vertex Amplification to our Shaders
-      1. Vertex Shader
-      2. Fragment Shader
-4. Updating and Encoding a Frame of Content
-   1. Rendering on a Separate Thread
-   2. Fetching a Next Frame for Drawing
-   3. Getting Predicted Render Deadlines
-   4. Updating Our App State Before Rendering
-   5. Waiting Until Optimal Rendering Time
-   6. Frame Submission Phase
-5. Supporting Both Stereoscopic and non-VR Display Rendering 
-   1. Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`.
-   3. Adapting our Vertex Shader
-6. Gotchas
-   1. Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled
-   2. Postprocessing
-   3. True Camera Position
-   4. Apple Vision Simulator
+   2. [Organizing the Metal Textures Used for Presenting the Rendered Content](#organising-the-metal-textures-used-for-presenting-the-rendered-content)
+3. [Vertex Amplification](#vertex-amplification)
+   1. [Preparing to Render with Support for Vertex Amplification](#preparing-to-render-with-support-for-vertex-amplification)
+   2. [Enabling Vertex Amplification for a Render Pass](#enabling-vertex-amplification-for-a-render-pass)
+   3. [Specifying the Viewport Mappings for Both Render Targets](#specifying-the-viewport-mappings-for-both-render-targets)
+   4. [Computing the View and Projection Matrices for Each Eye](#computing-the-view-and-projection-matrices-for-each-eye)
+   5. [Adding Vertex Amplification to our Shaders](#adding-vertex-amplification-to-our-shaders)
+      1. [Vertex Shader](#vertex-shader)
+      2. [Fragment Shader](#fragment-shader)
+4. [Updating and Encoding a Frame of Content](#updating-and-encoding-a-frame-of-content)
+   1. [Rendering on a Separate Thread](#rendering-on-a-separate-thread)
+   2. [Fetching a Next Frame for Drawing](#fetching-a-next-frame-for-drawing)
+   3. [Getting Predicted Render Deadlines](#getting-predicted-render-deadlines)
+   4. [Updating Our App State Before Rendering](#updating-our-app-state-before-rendering)
+   5. [Waiting Until Optimal Rendering Time](#waiting-until-optimal-rendering-time)
+   6. [Frame Submission Phase](#frame-submission-phase)
+5. [Supporting Both Stereoscopic and non-VR Display Rendering](#supporting-both-stereoscopic-and-non-vr-display-rendering)
+   1. [Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`](#two-rendering-paths-layerenderer-frame-drawable-vs-mtkview)
+   3. [Adapting our Vertex Shader](#adapting-our-vertex-shader)
+6. [Gotchas](#gotchas)
+   1. [Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled](can-t-render-to-a-smaller-resolution-pixel-buffer-when-foveation-is-enabled)
+   2. [Postprocessing](#postprocessing)
+   3. [True Camera Position](#true-camera-position)
+   4. [Apple Vision Simulator](#apple-vision-simulator)
 
 ## Introduction
 

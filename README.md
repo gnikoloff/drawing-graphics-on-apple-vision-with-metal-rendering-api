@@ -1,3 +1,7 @@
+# Drawing Graphics on Apple Vision with the Metal Rendering API
+
+## Table of Contents
+
 1. [Introduction](#introduction)
    1. [Why Write This Article?](#why-write-this-article)
    1. [`Metal`](#metal)

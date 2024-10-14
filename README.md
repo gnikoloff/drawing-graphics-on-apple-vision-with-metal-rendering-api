@@ -167,9 +167,9 @@ We now have a `MTLRenderPipelineDescriptor` that represents a graphics pipeline 
 2. Set the viewport size.
 3. Set the render target we are rendering to.
 4. Clear the contents of the render target with the clear color set in step 1.
-5. Set `MTLRenderPipelineState` for object A
+5. Set `MTLRenderPipelineState` for object A as active
 6. Render object A.
-7. Set `MTLRenderPipelineState` for object B
+7. Set `MTLRenderPipelineState` for object B as active
 8. Render object B.
 9. Finally submit all of the above commands to the GPU
 10. Write the resulting pixel values to some pixel attachment

@@ -818,4 +818,4 @@ I use this approach in my code.
 
 First of all, the Simulator renders your scene only for the left eye. It simply ignores the right eye. All of your vertex amplification code will work just fine, but the second vertex amplification will be ignored.
 
-It also lacks some features (which is the case when simulating other Apple hardware as well). MSAA for example is not allowed so you will need to use the `#if targetEnvironment(simulator)` directive and implement two code paths for with MSAA and without.
+Secondly, it also lacks some features (which is the case when simulating other Apple hardware as well). MSAA for example is not allowed so you will need to use the `#if targetEnvironment(simulator)` directive and implement two code paths for with MSAA and without.

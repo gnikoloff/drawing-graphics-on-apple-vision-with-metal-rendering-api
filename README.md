@@ -133,7 +133,7 @@ Imagine we have a triangle we want rendered on Apple Vision. A triangle consists
 1. Issue draw command **A** to render 3 vertices to the left eye display.
 2. Issue draw command **B** to render the same 3 vertices again, this time for the right eye display.
 
-> **_NOTE:_** Rendering everything twice and issuing double the amount of commands is required if you have chosen `.dedicated` texture layout when setting up your `LayerRenderer`.
+> **_NOTE_** Rendering everything twice and issuing double the amount of commands is required if you have chosen `.dedicated` texture layout when setting up your `LayerRenderer`.
 
 This is not optimal as it doubles the commands needed to be submited to the GPU for rendering. A 3 vertices triangle is fine, but for more complex scenes with even moderate amounts of geometry it becomes unwieldly very fast. Thankfully, Metal allows us to submit the 3 vertices once for both displays via a technique called **Vertex Amplification**.
 
@@ -194,13 +194,13 @@ renderPassDescriptor.rasterizationRateMap = drawable.rasterizationRateMaps.first
 renderPassDescriptor.renderTargetArrayLength = 2
 ```
 
-> **_NOTE:_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the `rasterizationRateMaps` property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
+> **_NOTE_** Turning on foveation prevents rendering to a pixel buffer with smaller resolution than the device display. Certain graphics techniques allow for rendering to a lower resolution pixel buffer and upscaling it before presenting it or using it as an input to another effect. That is a performance optimisation. Apple for example has the [MetalFX](https://developer.apple.com/documentation/metalfx) upscaler that allows us to render to a smaller pixel buffer and upscale it back to native resolution. That is not possible when rendering on visionOS with foveation enabled due to the `rasterizationRateMaps` property. That property is set internally by Compositor Services when a new `LayerRenderer` is created based on whether we turned on the [`isFoveationEnabled`](https://developer.apple.com/documentation/compositorservices/layerrenderer/configuration-swift.struct/isfoveationenabled) property in our layer configuration. We don't have a say in the direct creation of the `rasterizationRateMaps` property. We can not use smaller viewport sizes sizes when rendering to our `LayerRenderer` textures that have predefined rasterization rate maps because the viewport dimensions will not match. We can not change the dimensions of the predefined rasterization rate maps.
 >
 > With foveation disabled you **can** render to a pixel buffer smaller in resolution than the device display. You can render at, say, 75% of the native resolution and use MetalFX to upscale it to 100%. This approach works on Apple Vision.
 
 Once created with the definition above, the render pass represented by a [`MTLRenderCommandEncoder`](https://developer.apple.com/documentation/metal/mtlrendercommandencoder). We use this `MTLRenderCommandEncoder` to encode our **rendering** commands from the steps above into a [`MTLCommandBuffer`](https://developer.apple.com/documentation/metal/mtlcommandbuffer) which is submitted to the GPU for execution. For a given frame, after these commands have been issued and submitted by the CPU to the GPU for encoding, the GPU will execute each command in correct order, produce the final pixel values for the specific frame, and write them to the final texture to be presented to the user.
 
-> **_NOTE:_** A game can and often does have multiple render passes per frame. Imagine you are building a first person racing game. The main render pass would draw the interior of your car, your opponents' cars, the world, the trees and so on. A second render pass will draw all of the HUD and UI on top. A third render pass might be used for drawing shadows. A fourth render pass might render the objects in your rearview mirror and so on. All of these render passes need to be encoded and submitted to the GPU on each new frame for drawing.
+> **_NOTE_** A game can and often does have multiple render passes per frame. Imagine you are building a first person racing game. The main render pass would draw the interior of your car, your opponents' cars, the world, the trees and so on. A second render pass will draw all of the HUD and UI on top. A third render pass might be used for drawing shadows. A fourth render pass might render the objects in your rearview mirror and so on. All of these render passes need to be encoded and submitted to the GPU on each new frame for drawing.
 
 It is important to note that the commands to be encoded in a `MTLCommandBuffer` and submitted to the GPU are not only limited to rendering. We can submit "compute" commands to the GPU for general-purpose non-rendering work such as fast number crunching via the [`MTLComputeCommandEncoder`](https://developer.apple.com/documentation/metal/mtlcomputecommandencoder) (modern techniques for ML, physics, simulations, etc are all done on the GPU nowadays). Apple Vision internal libraries for example use Metal for all the finger tracking, ARKit environment recognition and tracking and so on. However, let's focus only on the rendering commands for now.
 
@@ -317,7 +317,7 @@ let leftViewWorldMatrix = (deviceAnchorMatrix * leftEyeLocalMatrix.transform).in
 let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).inverse
 ```
 
-> **_NOTE:_** Pay special attention to the `.inverse` part in the end! That is because Apple Vision expects us to use a reverse-Z projection. This is especially important for passthrough rendering with Metal on visionOS 2.0.
+> **_NOTE_** Pay special attention to the `.inverse` part in the end! That is because Apple Vision expects us to use a reverse-Z projection. This is especially important for passthrough rendering with Metal on visionOS 2.0.
 
 Hopefully this image illustrates the concept:
 
@@ -338,7 +338,7 @@ These two matrices encode the perspective projections for each eye. Just like an
 
 Each `LayerRenderer.Drawable.View` for both eyes gives us a property called [`.tangents`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/view/4082271-tangents). It represents the values for the angles you use to determine the planes of the viewing frustum. We can use these angles to construct the volume between the near and far clipping planes that contains the scene’s visible content. We will use these tangent values to build the perspective projection matrix for each eye.
 
-> **_NOTE:_** The `.tangents` property is in fact deprecated on visionOS 2.0 and should not be used in new code. To obtain correct projection matrices for a given eye, one should use the new Compositor Services' [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:)) method. I will still cover doing it via the `.tangents` property for historical reasons.
+> **_NOTE_** The `.tangents` property is in fact deprecated on visionOS 2.0 and should not be used in new code. To obtain correct projection matrices for a given eye, one should use the new Compositor Services' [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:)) method. I will still cover doing it via the `.tangents` property for historical reasons.
 
 Let's obtain the tangent property for both eyes:
 
@@ -354,9 +354,9 @@ let farPlane = drawable.depthRange.x
 let nearPlane = drawable.depthRange.y
 ```
 
-> **_NOTE:_** Notice that the far plane is encoded in the `.x` property, while the near plane is in the `.y` range. That is, and I can not stress it enough, because Apple expects us to use reverse-Z projection matrices.
+> **_NOTE_** Notice that the far plane is encoded in the `.x` property, while the near plane is in the `.y` range. That is, and I can not stress it enough, because Apple expects us to use reverse-Z projection matrices.
 
-> **_NOTE:_** At the time of writing this article, at least on visionOS 1.0, the far plane (`depthRange.x`) in the reverse Z projection is actually positioned at negative infinity. I am not sure if this is the case in visionOS 2.0. Not sure why Apple decided to do this. Leaving it as-is at infiity will break certain techniques (for example subdividing the viewing frustum volume into subparts for Cascaded Shadowmaps). In RAYQUEST I actually artifically overwrite and cap this value at something like -500 before constructing my projection matrices. Remember what I said about never overwriting the default projection matrix attributes Apple Vision gives you? Well I did it only in this case. It works well for immersive space rendering. I can imagine however that overwriting any of these values is a big no-no for passthrough rendering on visionOS 2.0 (which has a different way of constructing projection matrices for each eye alltogether via the [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:))).
+> **_NOTE_** At the time of writing this article, at least on visionOS 1.0, the far plane (`depthRange.x`) in the reverse Z projection is actually positioned at negative infinity. I am not sure if this is the case in visionOS 2.0. Not sure why Apple decided to do this. Leaving it as-is at infiity will break certain techniques (for example subdividing the viewing frustum volume into subparts for Cascaded Shadowmaps). In RAYQUEST I actually artifically overwrite and cap this value at something like -500 before constructing my projection matrices. Remember what I said about never overwriting the default projection matrix attributes Apple Vision gives you? Well I did it only in this case. It works well for immersive space rendering. I can imagine however that overwriting any of these values is a big no-no for passthrough rendering on visionOS 2.0 (which has a different way of constructing projection matrices for each eye alltogether via the [`.computeProjection`](https://developer.apple.com/documentation/compositorservices/layerrenderer/drawable/computeprojection(convention:viewindex:))).
 
 Now that we have both `tangents` for each eye, we will utilise Apple's [Spatial](https://developer.apple.com/documentation/spatial) API. It will allow us to create and manipulate 3D mathematical primitives. What we are interested in particular is the [`ProjectiveTransform3D`](https://developer.apple.com/documentation/spatial/projectivetransform3d) that will allow us to obtain a perspective matrix for each eye given the tangents we queried earlier. Here is how it looks in code:
 
@@ -430,7 +430,7 @@ fragment float4 myFragShader() {
 
 This vertex shader expects a single pair of matrices - the view matrix and projection matrix.
 
-> **_NOTE:_** Take a look at the `VertexOut` definition. `texCoord` and `normal` are marked as `shared`, while `position` is not. That's because the position values will change depending on the current vertex amplification index. Both eyes have a different pair of matrices to transform each vertex with. The output vertex for the left eye render target will have different final positions than the output vertex for the right eye.
+> **_NOTE_** Take a look at the `VertexOut` definition. `texCoord` and `normal` are marked as `shared`, while `position` is not. That's because the position values will change depending on the current vertex amplification index. Both eyes have a different pair of matrices to transform each vertex with. The output vertex for the left eye render target will have different final positions than the output vertex for the right eye.
 > I hope this makes clear why `texCoord` and `normal` are `shared`. The values are **not** view or projection dependent. Their values will always be uniforms across different render targets, regardless of with which eye are we rendering them. For more info check out this [article](https://developer.apple.com/documentation/metal/render_passes/improving_rendering_performance_with_vertex_amplification).
 
 Remember we have two displays and two eye views on Apple Vision. Each view holds it's own respective view and projection matrices. We need a vertex shader that will accept 4 matrices - a view and projection matrices for each eye. 
@@ -473,7 +473,7 @@ I will skip on the fragment shader code for brevity sake. However will mention a
 
 In all these cases, we need the two pair of view + projection matrices for each eye. Fragment shaders also get the `amplification_id` property as input, so we can query the correct matrices in exactly the same way as did in the vertex shader above.
 
-> **_NOTE:_** Compute shaders **do not** get an `[[amplification_id]]` property. That makes porting and running view-dependent compute shaders harder when using two texture views in stereoscoping rendering. When adopting well established algorithms you may need to rethink them to account for two eyes and two textures.
+> **_NOTE_** Compute shaders **do not** get an `[[amplification_id]]` property. That makes porting and running view-dependent compute shaders harder when using two texture views in stereoscoping rendering. When adopting well established algorithms you may need to rethink them to account for two eyes and two textures.
 
 All that's left to do is...
 
@@ -590,7 +590,7 @@ Before doing any rendering, we need to update our app state. What do I mean by t
 
 These tasks can be done on the CPU or on the GPU via compute shaders, it does not matter. What does matter is that we need to process and run all of them **before rendering**, because they will dictate what and how exactly do we render. As an example, if you find out that two enemy tanks are colliding during this update phase, you may want to color them differently during rendering. If the user is pointing at a button, you may want to change the appearance of the scene. Apple calls this the **update phase** in their docs btw.
 
-> **_NOTE:_** All of the examples above refer to non-rendering work. However we **can** do rendering during the update phase!
+> **_NOTE_** All of the examples above refer to non-rendering work. However we **can** do rendering during the update phase!
 > The important distinction that Apple makes is whether we rely on the device anchor information during rendering. It is important to do only rendering work that **does not** depend on the device anchor in the update phase. Stuff like shadow map generation would be a good candidate for this. We render our content from the point of view of the sun, so the device anchor is irrelevant to us during shadowmap rendering.
 > Remember, it still may be the case that we have to wait until optimal rendering time and skip the current frame. We do not have reliable device anchor information **yet** during the update phase.
 
@@ -756,7 +756,7 @@ fragment float4 myFragShader() {
 
 Our updated shader supports both flat 2D and stereoscoping rendering. All we need to set the `isAmplifiedRendering` function constant when creating a `MTLRenderPipelineState` and supply the correct matrices to it.
 
-> **_NOTE:_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require multiple render targets or vertex amplification. With our updated vertex shader, we can now support both.
+> **_NOTE_** It is important to note that even when rendering on Apple Vision you may need to render to a flat 2D texture. One example would be drawing shadows, where you put a virtual camera where the sun should be, render to a depth buffer and then project these depth values when rendering to the main displays to determine if a pixel is in shadow or not. Rendering from the Sun point of view in this case does not require multiple render targets or vertex amplification. With our updated vertex shader, we can now support both.
 
 ## Gotchas
 
@@ -812,7 +812,7 @@ let cameraWorldPosition = (leftEyeWorldPosition + rightEyeWorldPosition) * 0.5
 
 I use this approach in my code.
 
-> **_NOTE:_** Using this approach breaks in Xcode's Apple Vision simulator! It renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
+> **_NOTE_** Using this approach breaks in Xcode's Apple Vision simulator! It renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
 
 ### Apple Vision Simulator
 

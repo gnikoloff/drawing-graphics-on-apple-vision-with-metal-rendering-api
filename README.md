@@ -807,7 +807,15 @@ let rightEyeWorldPosition = rightViewWorldMatrix.columns.3.xyz
 
 So what is the true camera position? We might need it in our shaders, to implement certain effects, etc.
 
-Since the difference between them is small, we can just pick a random eye and use its position as the unified camera world position. Or we can take their average:
+Since the difference between them is small, we can just pick the left eye and use its position as the unified camera world position.
+
+```swift
+let cameraWorldPosition = leftEyeWorldPosition
+```
+
+> **_NOTE_**: Why do we have to pick the left eye and not the right one? Xcode simulator uses the left eye to render, while the right one is ignored.
+
+Or we can take their average:
 
 ```swift
 let cameraWorldPosition = (leftEyeWorldPosition + rightEyeWorldPosition) * 0.5
@@ -815,7 +823,7 @@ let cameraWorldPosition = (leftEyeWorldPosition + rightEyeWorldPosition) * 0.5
 
 I use this approach in my code.
 
-> **_NOTE_** Using this approach breaks in Xcode's Apple Vision simulator! It renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
+> **_NOTE_** Using this approach breaks in Xcode's Apple Vision simulator! Took me some time to figure it out initially :) The simulator renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
 
 ### Apple Vision Simulator
 

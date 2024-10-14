@@ -179,7 +179,7 @@ All of these rendering commands represent a single **render pass** that happens 
 ```swift
 let renderPassDescriptor = MTLRenderPassDescriptor()
 // ...
-renderPassDescriptor.rasterizationRateMap =
+renderPassDescriptor.rasterizationRateMap = 
 renderPassDescriptor.renderTargetArrayLength = 2
 ```
 

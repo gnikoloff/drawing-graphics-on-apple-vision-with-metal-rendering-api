@@ -55,7 +55,7 @@ At the app’s initialization, Compositor Services automatically creates and con
 
 ## Creating and configuring a `LayerRenderer`
 
-In our scene creation code, we need to pass a type that adopts the `CompositorLayerConfiguration` protocol as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
+In our scene creation code, we need to pass a type that adopts the [`CompositorLayerConfiguration`](https://developer.apple.com/documentation/compositorservices/compositorlayerconfiguration) protocol as a parameter to our scene content. The system will then use that configuration to create a `LayerRenderer` that will hold information such as the pixel formats of the final color and depth buffers, how the textures used to present the rendered content to Apple Vision displays are organised, whether foveation is enabled and so on. More on all these fancy terms a bit later. Here is some boilerplate code:
 
 ```swift
 struct ContentStageConfiguration: CompositorLayerConfiguration {

@@ -21,7 +21,7 @@
    5. [Waiting Until Optimal Rendering Time](#waiting-until-optimal-rendering-time)
    6. [Frame Submission Phase](#frame-submission-phase)
 5. [Supporting Both Stereoscopic and non-VR Display Rendering](#supporting-both-stereoscopic-and-non-vr-display-rendering)
-   1. [Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`](#two-rendering-paths-layerenderer.frame.drawable-vs-mtkview)
+   1. [Two Rendering Paths. `LayerRenderer.Frame.Drawable` vs `MTKView`](#two-rendering-paths-layerrendererframedrawable-vs-mtkview)
    3. [Adapting our Vertex Shader](#adapting-our-vertex-shader)
 6. [Gotchas](#gotchas)
    1. [Can't Render to a Smaller Resolution Pixel Buffer when Foveation is Enabled](can-t-render-to-a-smaller-resolution-pixel-buffer-when-foveation-is-enabled)

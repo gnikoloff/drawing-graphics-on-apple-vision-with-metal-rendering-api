@@ -771,3 +771,51 @@ Turning on foveation prevents rendering to a pixel buffer with smaller resolutio
 Many Apple official examples use compute shaders to postprocess the final scene texture. Implementing sepia, vignette and other graphics techniques happen at the postprocessing stage.
 
 Using compute shaders to write to the textures provided by Compositor Services' `LayerRenderer` is not allowed. That is because these textures do not have the [`MTLTextureUsage.shaderWrite`](https://developer.apple.com/documentation/metal/mtltextureusage/1515854-shaderwrite) flag enabled. We can not enable this flag post factum ourselves, because they were internally created by Compositor Services. So for postprocessing we are left with spawning fullscreen quads for each display and using fragment shader to implement our postprocessing effects. That is allowed because the textures provided by Compositor Services **do** have the [`MTLTextureUsage.renderTarget`](https://developer.apple.com/documentation/metal/mtltextureusage/1515701-rendertarget) flag enabled. That is the case with the textures provided by `MTKView` on other Apple hardware btw.
+
+### True Camera Position
+
+Remember when we computed the view matrices for both eyes earlier? 
+
+```swift
+let leftViewWorldMatrix = (deviceAnchorMatrix * leftEyeLocalMatrix.transform).inverse
+let rightViewWorldMatrix = (deviceAnchorMatrix * rightEyeLocalMatrix.transform).inverse
+```
+
+These are 4x4 matrices and we can easily extract the translation out of them to obtain the camera world position. Something like this:
+
+```swift
+extension SIMD4 {
+  public var xyz: SIMD3<Scalar> {
+    get {
+      self[SIMD3(0, 1, 2)]
+    }
+    set {
+      self.x = newValue.x
+      self.y = newValue.y
+      self.z = newValue.z
+    }
+  }
+}
+
+// SIMD3<Float> vectors representing the XYZ position of each eye
+let leftEyeWorldPosition = leftViewWorldMatrix.columns.xyz
+let rightEyeWorldPosition = rightViewWorldMatrix.columns.xyz
+```
+
+The question now is, what is the true camera single position? We might need it in our shaders, to implement certain effects, etc.
+
+Since the difference between them is small, we can just pick a random eye and use its position as the unified camera world position. Or we can take their average:
+
+```swift
+let cameraWorldPosition = (leftEyeWorldPosition + rightEyeWorldPosition) * 0.5
+```
+
+I use this approach in my code.
+
+> **_NOTE:_** Using this approach breaks in Xcode's Apple Vision simulator! It renders the scene for just the left eye. You will need to use the `#if targetEnvironment(simulator)` preprocessor directive to use only the `leftEyeWorldPosition` when running your code in the simulator.
+
+### Apple Vision Simulator
+
+First of all, the Simulator renders your scene only for the left eye. It simply ignores the right eye. All of your vertex amplification code will work just fine, but the second vertex amplification will be ignored.
+
+It also lacks some features (which is the case when simulating other Apple hardware as well). MSAA for example is not allowed so you will need to use the `#if targetEnvironment(simulator)` directive and implement two code paths for with MSAA and without.

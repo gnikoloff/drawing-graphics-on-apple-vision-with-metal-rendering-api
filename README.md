@@ -33,7 +33,7 @@
    3. [True Camera Position](#true-camera-position)
    4. [Apple Vision Simulator](#apple-vision-simulator)
    5. [Reality Composer Pro](#reality-composer-pro)
-      1. [Problems with `LayerRenderer.Layout.layered`](#problems-with-layerrendererlayoutlayered))
+      1. [Problems with `LayerRenderer.Layout.layered` Setup](#problems-with-layerrendererlayoutlayered-setup)
 
 ## Introduction
 
@@ -837,7 +837,7 @@ Secondly, it also lacks some features (which is the case when simulating other A
 
 When capturing real footage of your app on Apple Vision, you should use the Developer Capture in Reality Composer Pro and **not** the default Control Center screen recording option.
 
-#### Problems with `LayerRenderer.Layout.layered`
+#### Problems with `LayerRenderer.Layout.layered` Setup
 
 Capturing when recording with a layered Compositor Services texture approach sadly does not work very well. That is the case on both VisionOS 1.0 and 2.0 at the time of writing this article.
 

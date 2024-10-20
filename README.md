@@ -32,6 +32,8 @@
    2. [Postprocessing](#postprocessing)
    3. [True Camera Position](#true-camera-position)
    4. [Apple Vision Simulator](#apple-vision-simulator)
+   5. Reality Composer Pro
+      5.1. Problems with `LayerRenderer.Layout.layered`
 
 ## Introduction
 
@@ -830,3 +832,14 @@ I use this approach in my code.
 First of all, the Simulator renders your scene only for the left eye. It simply ignores the right eye. All of your vertex amplification code will work just fine, but the second vertex amplification will be ignored.
 
 Secondly, it also lacks some features (which is the case when simulating other Apple hardware as well). MSAA for example is not allowed so you will need to use the `#if targetEnvironment(simulator)` directive and implement two code paths for with MSAA and without.
+
+### Reality Composer Pro
+
+When capturing real footage of your app on Apple Vision, you should use the Developer Capture in Reality Composer Pro and **not** the default Control Center screen recording option.
+
+#### Problems with `LayerRenderer.Layout.layered`
+
+Capturing when recording with a layered Compositor Services texture approach sadly does not work very well. That is the case on both VisionOS 1.0 and 2.0 at the time of writing this article.
+
+The problem is that the right eye texture slice does not display on Apple Vision during recording. Instead you see random memory garbage. The left eye view texture works just fine. So be prepared to record footage while being able to see with the left eye only.
+

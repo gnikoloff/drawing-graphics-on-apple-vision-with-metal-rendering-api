@@ -32,8 +32,8 @@
    2. [Postprocessing](#postprocessing)
    3. [True Camera Position](#true-camera-position)
    4. [Apple Vision Simulator](#apple-vision-simulator)
-   5. Reality Composer Pro
-      5.1. Problems with `LayerRenderer.Layout.layered`
+   5. [Reality Composer Pro](#reality-composer-pro)
+      1. [Problems with `LayerRenderer.Layout.layered`](#problems-with-layerrenderlayoutlayered)
 
 ## Introduction
 
